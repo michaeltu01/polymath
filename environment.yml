@@ -1,0 +1,28 @@
+name: polymath
+channels:
+  - conda-forge
+dependencies:
+  # CBMC
+  - bison=3.8.2
+  - cmake=3.31.2
+  - curl=8.11.1
+  - flex=2.6.4
+  - git=2.47.1
+  - gxx=14.2.0
+  - make=4.4.1
+  - patch=2.7.6
+
+  # libCST
+  - hatch=1.14.0
+  - rust=1.83.0
+
+  # Polymath
+  - python=3.13
+  - aiofiles=24.1.0
+  - aiohttp=3.11.11
+  - huggingface_hub=0.27.1
+  - pip=24.3.1
+  - pyarrow=19.0.1
+  - python-dotenv=1.0.1
+  - pip:
+    - pyre-check==0.9.23

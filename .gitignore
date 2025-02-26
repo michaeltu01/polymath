@@ -1,0 +1,14 @@
+__pycache__
+.env
+.vscode
+*.aux
+*.bbl
+*.blg
+*.fls
+*.log
+*.out
+*.pdf
+*.tar.gz
+build
+datasets
+inference/metagen_chat_completion.py

@@ -1,0 +1,12 @@
+[submodule "lib/libCST"]
+	path = lib/libCST
+	url = https://github.com/pkesseli/LibCST.git
+[submodule "lib/cbmc"]
+	path = lib/cbmc
+	url = https://github.com/pkesseli/cbmc.git
+[submodule "lib/ZeroEval"]
+	path = lib/ZeroEval
+	url = https://github.com/pkesseli/ZeroEval.git
+[submodule "lib/z3"]
+	path = lib/z3
+	url = https://github.com/Z3Prover/z3.git
