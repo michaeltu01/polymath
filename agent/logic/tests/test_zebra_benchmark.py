@@ -84,7 +84,7 @@ class TestZebraBenchmark(IsolatedAsyncioTestCase):
             zebraBenchmark = ZebraBenchmark(
                 eval_json_file_name,
                 "meta-llama/Meta-Llama-3.1-70B-Instruct@reasoning",
-                "claude-3-5-sonnet-20241022",
+                "llama3-70b-instruct",
                 False,
                 lambda task: task["id"] == "lgp-test-5x6-16",
             )
