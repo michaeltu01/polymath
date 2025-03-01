@@ -12,3 +12,4 @@ __pycache__
 build
 datasets
 inference/metagen_chat_completion.py
+openapi_server

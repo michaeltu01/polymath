@@ -9,6 +9,18 @@
 script_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 
+# Generate OpenAI API
+pushd $script_dir/..
+rm -r openapi_server/* 2>/dev/null
+mkdir openapi_server 2>/dev/null
+curl --silent --output openapi_server/openapi.yaml https://raw.githubusercontent.com/openai/openai-openapi/a173760299883c3c8aa22ff700cc9b30c1b02003/openapi.yaml
+git apply server/openapi.yaml.diff
+openapi-generator-cli generate --input-spec openapi_server/openapi.yaml --generator-name python-fastapi --openapi-normalizer FILTER='operationId:createChatCompletion' --output generated-tmp/
+cp -r generated-tmp/src/openapi_server/* openapi_server
+rm -r generated-tmp
+popd
+
+
 # libCST
 ## Build libCST
 pushd $script_dir/../lib/libCST

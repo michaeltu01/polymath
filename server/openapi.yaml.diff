@@ -1,0 +1,31 @@
+diff --git a/openapi_server/openapi.yaml b/openapi_server/openapi.yaml
+index 04168f3..2c54d4d 100644
+--- a/openapi_server/openapi.yaml
++++ b/openapi_server/openapi.yaml
+@@ -13231,7 +13231,7 @@ components:
+         true`.
+       type: object
+       nullable: true
+-      default: null
++      # default: null
+       properties:
+         include_usage:
+           type: boolean
+@@ -13945,7 +13945,7 @@ components:
+         logit_bias:
+           type: object
+           x-oaiTypeLabel: map
+-          default: null
++          # default: null
+           nullable: true
+           additionalProperties:
+             type: integer
+@@ -14695,7 +14695,7 @@ components:
+         logit_bias:
+           type: object
+           x-oaiTypeLabel: map
+-          default: null
++          # default: null
+           nullable: true
+           additionalProperties:
+             type: integer
