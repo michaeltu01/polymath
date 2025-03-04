@@ -72,7 +72,7 @@ class TestZebraBenchmark(IsolatedAsyncioTestCase):
 }""",
             ZebraBenchmark.get_format(
                 loads(
-                    '{ "header": [ "House", "Name", "Nationality", "BookGenre", "Food", "Color", "Animal" ], "rows": [ [ "___", "___", "___", "___", "___", "___", "___" ], [ "___", "___", "___", "___", "___", "___", "___" ], [ "___", "___", "___", "___", "___", "___", "___" ], [ "___", "___", "___", "___", "___", "___", "___" ], [ "___", "___", "___", "___", "___", "___", "___" ] ] }'
+                    '{ "header": [ "House", "Name", "Nationality", "BookGenre", "Food", "Color", "Animal" ], "rows": [ [ "XXX", "XXX", "XXX", "XXX", "XXX", "XXX", "XXX" ], [ "XXX", "XXX", "XXX", "XXX", "XXX", "XXX", "XXX" ], [ "XXX", "XXX", "XXX", "XXX", "XXX", "XXX", "XXX" ], [ "XXX", "XXX", "XXX", "XXX", "XXX", "XXX", "XXX" ], [ "XXX", "XXX", "XXX", "XXX", "XXX", "XXX", "XXX" ] ] }'
                 )
             ),
         )
