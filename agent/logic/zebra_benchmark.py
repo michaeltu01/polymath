@@ -4,22 +4,30 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import asyncio
 import os
+from asyncio import Lock, run
 from io import StringIO
 from json import dumps
-from typing import Any, Callable, Tuple
+from types import TracebackType
+from typing import Any, Callable, Optional, Tuple
 
 import aiofiles
 
-from agent.logic.agent import LogicAgent, ResultTrace
+from agent.logic.agent import LogicAgent
 from agent.logic.cbmc_search_engine_strategy import CBMCSearchEngineStrategy
 from agent.logic.engine_strategy import EngineStrategy
+from aiofiles.base import AiofilesContextManager
+from aiofiles.threadpool.text import AsyncTextIOWrapper
 from concurrency.async_pool import AsyncPool
 
 from dotenv import load_dotenv
 from inference.chat_completion_factory import create_chat_completion
+from judge.json_judge import JsonJudge
+from judge.result_trace import ResultTrace
 from logger.logger_factory import LoggerFactory
+
+from output.sample_output_converter import SampleOutputConverter
+from output.sample_output_converter_factory import create_sample_output_converter
 from pyarrow import Table
 from pyarrow.parquet import ParquetFile
 
@@ -35,6 +43,7 @@ class ZebraBenchmark:
         generator: str,
         model_name: str,
         enable_stderr_log: bool = True,
+        generate_training_data: bool = False,
         filter_dataset: Callable[[dict[str, Any]], bool] = lambda task: True,
     ) -> None:
         """
@@ -48,16 +57,43 @@ class ZebraBenchmark:
             filter_dataset (Callable[[Any], Any]): Filter to select which tasks
             from the benchmark set to run.
         """
-        self.__eval_json_file_name: str = eval_json_file_name
+        self.__eval_json_file_name = eval_json_file_name
+        self.__xlformers_output_dataset_context: AiofilesContextManager = aiofiles.open(
+            eval_json_file_name.replace(".json", "-dataset.json"), "w"
+        )
+        self.__xlformers_output_dataset_lock = Lock()
         self.__generator: str = generator
         self.__model_name: str = model_name
         self.__enable_stderr_log: bool = enable_stderr_log
         self.__filter_dataset: Callable[[dict[str, Any]], bool] = filter_dataset
+        self.__generate_training_data: bool = generate_training_data
+        self.__judge: Callable[[ResultTrace, Any], bool] = JsonJudge()
+        self.__sample_output_converter: SampleOutputConverter = (
+            create_sample_output_converter()
+        )
 
         module_path: str = os.path.dirname(__file__)
         self.__zebra_input_dataset_path: str = os.path.join(
             module_path, "../../datasets/grid_mode/test-00000-of-00001.parquet"
         )
+
+    async def __aenter__(self) -> "ZebraBenchmark":
+        if self.__generate_training_data:
+            self.__xlformers_output_dataset: AsyncTextIOWrapper = (
+                await self.__xlformers_output_dataset_context.__aenter__()
+            )
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_value: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        if self.__generate_training_data:
+            await self.__xlformers_output_dataset_context.__aexit__(
+                exc_type, exc_value, exc_tb
+            )
 
     async def run(self) -> None:
         """
@@ -75,20 +111,28 @@ class ZebraBenchmark:
 
         await pool.gather()
 
-        async with aiofiles.open(self.__eval_json_file_name, "w") as file:
-            await file.write(dumps(eval_json, indent=4))
+        if self.__generate_training_data:
+            # TODO: Write RL scorer metadata
+            pass
+        else:
+            async with aiofiles.open(self.__eval_json_file_name, "w") as file:
+                await file.write(dumps(eval_json, indent=4))
 
     async def run_task(
-        self, eval_json: list[dict[str, Any]], task: dict[str, Any]
+        self,
+        eval_json: list[dict[str, Any]],
+        task: dict[str, Any],
     ) -> None:
         """
         Executes a single benchmark task and stores the result in `eval_json`.
         """
+        task_id: str = task["id"]
         puzzle: str = task["puzzle"]
-        output_format: str = ZebraBenchmark.get_format(task["solution"])
+        expected_solution: Any = task["solution"]
+        output_format: str = ZebraBenchmark.get_format(expected_solution)
 
         log_stream = StringIO()
-        result_trace = ResultTrace()
+        result_trace = ResultTrace(task_id)
         with LoggerFactory(log_stream, self.__enable_stderr_log) as logger_factory:
             engine_strategy: EngineStrategy = CBMCSearchEngineStrategy(
                 logger_factory, puzzle, output_format
@@ -101,22 +145,32 @@ class ZebraBenchmark:
                 )
                 await agent.solve()
 
-        eval_json.append(
-            {
-                "session_id": task["id"],
-                "chat_history": [message["text"] for message in result_trace.messages],
-                "model_input": "n/a",
-                "output": [result_trace.solution],
-                "debug_output": [f"{log_stream.getvalue()}\n{repr(result_trace)}"],
-                "generator": self.__generator,
-                "configs": {},
-                "dataset": "zebra-grid",
-                "id": task["id"],
-                "size": task["size"],
-                "puzzle": puzzle,
-                "created_at": task["created_at"],
-            }
-        )
+        if self.__generate_training_data:
+            if self.__judge(result_trace, expected_solution):
+                # TODO: Produce VC GOTO binary
+                sample: Any = self.__sample_output_converter.convert([], {})
+                lines: list[str] = [dumps(sample)]
+                async with self.__xlformers_output_dataset_lock:
+                    await self.__xlformers_output_dataset.writelines(lines)
+        else:
+            eval_json.append(
+                {
+                    "session_id": task_id,
+                    "chat_history": [
+                        message["text"] for message in result_trace.messages
+                    ],
+                    "model_input": "n/a",
+                    "output": [result_trace.solution],
+                    "debug_output": [f"{log_stream.getvalue()}\n{repr(result_trace)}"],
+                    "generator": self.__generator,
+                    "configs": {},
+                    "dataset": "zebra-grid",
+                    "id": task_id,
+                    "size": task["size"],
+                    "puzzle": puzzle,
+                    "created_at": task["created_at"],
+                }
+            )
 
     @staticmethod
     def get_format(solution_placeholder: dict[str, Any]) -> str:
@@ -153,9 +207,16 @@ async def main():
         ),
     ]
     for model in models:
-        benchmark = ZebraBenchmark(model[0], model[1], model[2])
-        await benchmark.run()
+        async with ZebraBenchmark(
+            model[0],
+            model[1],
+            model[2],
+            True,
+            True,
+            lambda task: task["id"] == "lgp-test-5x6-16",
+        ) as benchmark:
+            await benchmark.run()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    run(main())

@@ -13,7 +13,7 @@ from typing import Any, Callable, Optional
 
 import aiofiles
 
-from agent.logic.agent import LogicAgent, ResultTrace
+from agent.logic.agent import LogicAgent
 from agent.logic.engine_strategy import EngineStrategy
 from agent.logic.z3_conclusion_check_engine_strategy import (
     Z3ConclusionCheckEngineStrategy,
@@ -21,6 +21,7 @@ from agent.logic.z3_conclusion_check_engine_strategy import (
 from concurrency.async_pool import AsyncPool
 from dotenv import load_dotenv
 from inference.chat_completion_factory import create_chat_completion
+from judge.result_trace import ResultTrace
 from logger.logger_factory import LoggerFactory
 
 
@@ -130,12 +131,12 @@ class FOLIOBenchmark:
             to insert the result of this task run.
             task (Any): FOLIO benchmark JSON task to run.
         """
-        id: int = FOLIOBenchmark.get_task_id(task)
+        task_id: int = FOLIOBenchmark.get_task_id(task)
         premise: str = task["premises"]
         conclusion: str = task["conclusion"]
 
         log_stream = StringIO()
-        result_trace = ResultTrace()
+        result_trace = ResultTrace(task_id)
         with LoggerFactory(log_stream, self.__enable_stderr_log) as logger_factory:
             engine_strategy: EngineStrategy = Z3ConclusionCheckEngineStrategy(
                 logger_factory, premise, conclusion
@@ -147,7 +148,7 @@ class FOLIOBenchmark:
                     logger_factory, chat_completion, engine_strategy, result_trace, True
                 )
                 await agent.solve()
-        traces[id] = result_trace
+        traces[task_id] = result_trace
 
     @staticmethod
     def get_task_id(folio_task: Any) -> int:

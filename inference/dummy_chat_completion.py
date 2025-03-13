@@ -13,6 +13,12 @@ from inference.finish_reason import FinishReason
 
 
 class DummyChatCompletion(ChatCompletion):
+    """
+    Dummy implementation of ChatCompletion. You should create your own
+    implementation with access to your specific LLM inference back-end. We will
+    provide some default implementations for this class in the future, e.g. for
+    the OpenAI API.
+    """
 
     def __init__(
         self,
@@ -40,14 +46,4 @@ class DummyChatCompletion(ChatCompletion):
     async def create(
         self, conversation: list[dict[str, str]]
     ) -> Tuple[FinishReason, Optional[str]]:
-        """
-        Sends the given conversation to chat completions inference back-end.
-        This is just a dummy implementation. You should create your own
-        implementation with access to your specific LLM inference back-end. We
-        will provide some default implementations for this class in the future,
-        e.g. for the OpenAI API.
-
-        Returns: Tuple of finish reason and LLM response text.
-        """
-
         return FinishReason.STOPPED, "Hello! I am very intelligent!"

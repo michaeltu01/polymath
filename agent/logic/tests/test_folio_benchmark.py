@@ -6,12 +6,13 @@
 
 import os
 from typing import Optional
-from unittest import IsolatedAsyncioTestCase, skip
+from unittest import IsolatedAsyncioTestCase
 
-from agent.logic.agent import ResultTrace
 from agent.logic.folio_benchmark import FOLIOBenchmark, FOLIOBenchmarkResult
 
 from dotenv import load_dotenv
+
+from judge.result_trace import ResultTrace
 
 
 load_dotenv()

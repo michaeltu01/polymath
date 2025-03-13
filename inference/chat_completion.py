@@ -12,6 +12,10 @@ from inference.finish_reason import FinishReason
 
 
 class ChatCompletion(ABC):
+    """
+    Basic LLM chat completion API, to be implemented by concrete inference
+    providers.
+    """
 
     @abstractmethod
     async def __aenter__(self) -> "ChatCompletion": ...
@@ -29,10 +33,8 @@ class ChatCompletion(ABC):
     ) -> Tuple[FinishReason, Optional[str]]:
         """
         Sends the given conversation to chat completions inference back-end.
-        This is just a dummy implementation. You should create your own
-        implementation with access to your specific LLM inference back-end. We
-        will provide some default implementations for this class in the future,
-        e.g. for the OpenAI API.
+        Each conversation message should contain a "role" and "text" property.
+        TODO: Refactor this to a Message class.
 
         Returns: Tuple of finish reason and LLM response text.
         """

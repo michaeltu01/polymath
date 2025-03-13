@@ -48,11 +48,13 @@ popd
 pushd $script_dir/../lib/cbmc
 git submodule update --init
 cmake -S . -Bbuild
-cmake --build build --target cbmc --parallel
+cmake --build build --target cbmc --target goto-cc --target goto-instrument --parallel
 popd
 
 ## Install CBMC
 cp $script_dir/../lib/cbmc/build/bin/cbmc $CONDA_PREFIX/bin/
+cp $script_dir/../lib/cbmc/build/bin/goto-cc $CONDA_PREFIX/bin/
+cp $script_dir/../lib/cbmc/build/bin/goto-instrument $CONDA_PREFIX/bin/
 
 
 # Z3

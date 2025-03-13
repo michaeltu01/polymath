@@ -86,6 +86,7 @@ class TestZebraBenchmark(IsolatedAsyncioTestCase):
                 "meta-llama/Meta-Llama-3.1-70B-Instruct@reasoning",
                 "llama3-70b-instruct",
                 False,
+                False,
                 lambda task: task["id"] == "lgp-test-5x6-16",
             )
             await zebraBenchmark.run()
