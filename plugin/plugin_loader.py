@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+
 from importlib.abc import Loader
 from importlib.machinery import ModuleSpec
 from importlib.util import module_from_spec, spec_from_file_location
