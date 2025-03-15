@@ -33,8 +33,6 @@ class LogicPyCHarnessGenerator(ABC):
 #ifndef __CPROVER
 void __CPROVER_assume(bool condition);
 void __CPROVER_assert(bool condition, const char *message);
-#else
-#define abs(value) ((value) < 0 ? -(value) : value)
 #endif
 
 #define __CPROVER_unique_domain(field, field_domain_array)                                  \

@@ -54,7 +54,7 @@ def validate(solution: PuzzleSolution) -> None:
     assume(silverado_owner.car == "chevrolet silverado")
     victorian_owner = nondet(solution.houses)
     assume(victorian_owner.house_style == "victorian")
-    assert abs(silverado_owner.house_number - victorian_owner.house_number) == 2
+    assert __CPROVER_abs(silverado_owner.house_number - victorian_owner.house_number) == 2
 
     # Clue 5: The person in a Mediterranean-style villa is the person who drinks Lime smoothies.
     mediterranean_owner = nondet(solution.houses)
@@ -83,7 +83,7 @@ def validate(solution: PuzzleSolution) -> None:
     assume(dragonfruit_lover.smoothie == "dragonfruit")
     pixel_owner = nondet(solution.houses)
     assume(pixel_owner.phone == "google pixel 6")
-    assert abs(dragonfruit_lover.house_number - pixel_owner.house_number) == 1
+    assert __CPROVER_abs(dragonfruit_lover.house_number - pixel_owner.house_number) == 1
 
     # Clue 10: The person who loves the soup is Peter.
     peter = nondet(solution.houses)
@@ -242,7 +242,7 @@ static void validate(struct PuzzleSolution solution) {
     __CPROVER_assume(silverado_owner.car == "chevrolet silverado");
     typeof(__CPROVER_nondet_element(solution.houses)) victorian_owner = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(victorian_owner.house_style == "victorian");
-    __CPROVER_assume(abs(silverado_owner.house_number - victorian_owner.house_number) == 2);
+    __CPROVER_assume(__CPROVER_abs(silverado_owner.house_number - victorian_owner.house_number) == 2);
     typeof(__CPROVER_nondet_element(solution.houses)) mediterranean_owner = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(mediterranean_owner.house_style == "mediterranean");
     __CPROVER_assume(mediterranean_owner.smoothie == "lime");
@@ -261,7 +261,7 @@ static void validate(struct PuzzleSolution solution) {
     __CPROVER_assume(dragonfruit_lover_1.smoothie == "dragonfruit");
     typeof(__CPROVER_nondet_element(solution.houses)) pixel_owner = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(pixel_owner.phone == "google pixel 6");
-    __CPROVER_assume(abs(dragonfruit_lover_1.house_number - pixel_owner.house_number) == 1);
+    __CPROVER_assume(__CPROVER_abs(dragonfruit_lover_1.house_number - pixel_owner.house_number) == 1);
     typeof(__CPROVER_nondet_element(solution.houses)) peter = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(peter.name == "Peter");
     __CPROVER_assume(peter.lunch == "soup");

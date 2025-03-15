@@ -94,6 +94,7 @@ class TestZebraBenchmark(IsolatedAsyncioTestCase):
             eval_json: str
             async with aiofiles.open(eval_json_file_name, "r") as file:
                 eval_json = await file.read()
+
             self.assertTrue(
                 r""""output": [
             "{\n    \"solution\": {\n        \"House 1\": {\n"""

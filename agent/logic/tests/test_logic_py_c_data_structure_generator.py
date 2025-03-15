@@ -56,7 +56,7 @@ def validate(solution: PuzzleSolution) -> None:
     assume(silverado_owner.car == "chevrolet silverado")
     victorian_owner = nondet(solution.houses)
     assume(victorian_owner.house_style == "victorian")
-    assert abs(silverado_owner.house_number - victorian_owner.house_number) == 2
+    assert __CPROVER_abs(silverado_owner.house_number - victorian_owner.house_number) == 2
 
     # Clue 5: The person in a Mediterranean-style villa is the person who drinks Lime smoothies.
     mediterranean_owner = nondet(solution.houses)
@@ -85,7 +85,7 @@ def validate(solution: PuzzleSolution) -> None:
     assume(dragonfruit_lover.smoothie == "dragonfruit")
     pixel_owner = nondet(solution.houses)
     assume(pixel_owner.phone == "google pixel 6")
-    assert abs(dragonfruit_lover.house_number - pixel_owner.house_number) == 1
+    assert __CPROVER_abs(dragonfruit_lover.house_number - pixel_owner.house_number) == 1
 
     # Clue 10: The person who loves the soup is Peter.
     peter = nondet(solution.houses)

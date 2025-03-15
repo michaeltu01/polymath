@@ -187,6 +187,8 @@ class LogicPyCConstraintGenerator(m.MatcherDecoratableVisitor):
                 value = "__CPROVER_nondet_element"
             elif value == "assume":
                 value = "__CPROVER_assume"
+            elif value == "abs":
+                value = "__CPROVER_abs"
             elif value == "False":
                 value = "false"
             elif value == "True":

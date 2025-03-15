@@ -54,7 +54,7 @@ def validate(solution: PuzzleSolution) -> None:
     assume(silverado_owner.car == "chevrolet silverado")
     victorian_owner = nondet(solution.houses)
     assume(victorian_owner.house_style == "victorian")
-    assert abs(silverado_owner.house_number - victorian_owner.house_number) == 2
+    assert __CPROVER_abs(silverado_owner.house_number - victorian_owner.house_number) == 2
 
     # Clue 5: The person in a Mediterranean-style villa is the person who drinks Lime smoothies.
     mediterranean_owner = nondet(solution.houses)
@@ -83,7 +83,7 @@ def validate(solution: PuzzleSolution) -> None:
     assume(dragonfruit_lover.smoothie == "dragonfruit")
     pixel_owner = nondet(solution.houses)
     assume(pixel_owner.phone == "google pixel 6")
-    assert abs(dragonfruit_lover.house_number - pixel_owner.house_number) == 1
+    assert __CPROVER_abs(dragonfruit_lover.house_number - pixel_owner.house_number) == 1
 
     # Clue 10: The person who loves the soup is Peter.
     peter = nondet(solution.houses)
@@ -167,7 +167,7 @@ def validate(solution: PuzzleSolution) -> None:
     __CPROVER_assume(silverado_owner.car == "chevrolet silverado");
     typeof(__CPROVER_nondet_element(solution.houses)) victorian_owner = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(victorian_owner.house_style == "victorian");
-    __CPROVER_assume(abs(silverado_owner.house_number - victorian_owner.house_number) == 2);
+    __CPROVER_assume(__CPROVER_abs(silverado_owner.house_number - victorian_owner.house_number) == 2);
     typeof(__CPROVER_nondet_element(solution.houses)) mediterranean_owner = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(mediterranean_owner.house_style == "mediterranean");
     __CPROVER_assume(mediterranean_owner.smoothie == "lime");
@@ -186,7 +186,7 @@ def validate(solution: PuzzleSolution) -> None:
     __CPROVER_assume(dragonfruit_lover_1.smoothie == "dragonfruit");
     typeof(__CPROVER_nondet_element(solution.houses)) pixel_owner = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(pixel_owner.phone == "google pixel 6");
-    __CPROVER_assume(abs(dragonfruit_lover_1.house_number - pixel_owner.house_number) == 1);
+    __CPROVER_assume(__CPROVER_abs(dragonfruit_lover_1.house_number - pixel_owner.house_number) == 1);
     typeof(__CPROVER_nondet_element(solution.houses)) peter = __CPROVER_nondet_element(solution.houses);
     __CPROVER_assume(peter.name == "Peter");
     __CPROVER_assume(peter.lunch == "soup");
@@ -345,7 +345,7 @@ def validate(solution: Table) -> None:
     assume(horse_keeper.animal == "horse")
     meredith_child = nondet(solution.rows)
     assume(meredith_child.child == "Meredith")
-    assert abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2
+    assert __CPROVER_abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2
 
     # Clue 15: The person\'s child is named Bella is somewhere to the right of Peter.
     peter = nondet(solution.rows)
@@ -373,7 +373,7 @@ def validate(solution: Table) -> None:
     assume(bella_child.child == "Bella")
     rock_music_lover = nondet(solution.rows)
     assume(rock_music_lover.music == "rock")
-    assert abs(solution.rows.index(bella_child) - solution.rows.index(rock_music_lover)) == 2
+    assert __CPROVER_abs(solution.rows.index(bella_child) - solution.rows.index(rock_music_lover)) == 2
 
     # Clue 19: The person who is short is the cat lover.
     short_person = nondet(solution.rows)
@@ -397,7 +397,7 @@ def validate(solution: Table) -> None:
     assume(penny_mother.mother == "Penny")
     short_person = nondet(solution.rows)
     assume(short_person.height == "short")
-    assert abs(solution.rows.index(penny_mother) - solution.rows.index(short_person)) == 3
+    assert __CPROVER_abs(solution.rows.index(penny_mother) - solution.rows.index(short_person)) == 3
 
     # Clue 23: The person who loves hip-hop music is in the first house.
     hip_hop_music_lover = nondet(solution.rows)
@@ -463,7 +463,7 @@ def validate(solution: Table) -> None:
     __CPROVER_assume(horse_keeper.animal == "horse");
     typeof(__CPROVER_nondet_element(solution.rows)) meredith_child_1 = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(meredith_child_1.child == "Meredith");
-    __CPROVER_assume(abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child_1)) == 2);
+    __CPROVER_assume(__CPROVER_abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child_1)) == 2);
     typeof(__CPROVER_nondet_element(solution.rows)) peter = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(peter.name == "Peter");
     typeof(__CPROVER_nondet_element(solution.rows)) bella_child = __CPROVER_nondet_element(solution.rows);
@@ -483,7 +483,7 @@ def validate(solution: Table) -> None:
     __CPROVER_assume(bella_child_1.child == "Bella");
     typeof(__CPROVER_nondet_element(solution.rows)) rock_music_lover_1 = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(rock_music_lover_1.music == "rock");
-    __CPROVER_assume(abs(__CPROVER_index(solution.rows, bella_child_1) - __CPROVER_index(solution.rows, rock_music_lover_1)) == 2);
+    __CPROVER_assume(__CPROVER_abs(__CPROVER_index(solution.rows, bella_child_1) - __CPROVER_index(solution.rows, rock_music_lover_1)) == 2);
     typeof(__CPROVER_nondet_element(solution.rows)) short_person = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(short_person.height == "short");
     __CPROVER_assume(short_person.animal == "cat");
@@ -499,7 +499,7 @@ def validate(solution: Table) -> None:
     __CPROVER_assume(penny_mother.mother == "Penny");
     typeof(__CPROVER_nondet_element(solution.rows)) short_person_1 = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(short_person_1.height == "short");
-    __CPROVER_assume(abs(__CPROVER_index(solution.rows, penny_mother) - __CPROVER_index(solution.rows, short_person_1)) == 3);
+    __CPROVER_assume(__CPROVER_abs(__CPROVER_index(solution.rows, penny_mother) - __CPROVER_index(solution.rows, short_person_1)) == 3);
     typeof(__CPROVER_nondet_element(solution.rows)) hip_hop_music_lover = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(hip_hop_music_lover.music == "hip hop");
     __CPROVER_assume(__CPROVER_index(solution.rows, hip_hop_music_lover) == 0);
@@ -543,14 +543,14 @@ def validate(solution: Table) -> None:
     assume(horse_keeper.animal == "horse")
     meredith_child = nondet(solution.rows)
     assume(meredith_child.child == "Meredith")
-    assert abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2.
+    assert __CPROVER_abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2.
 """,
             """static void validate(struct Table solution) {
     typeof(__CPROVER_nondet_element(solution.rows)) horse_keeper = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(horse_keeper.animal == "horse");
     typeof(__CPROVER_nondet_element(solution.rows)) meredith_child = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(meredith_child.child == "Meredith");
-    __CPROVER_assume(abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child)) == 2.);
+    __CPROVER_assume(__CPROVER_abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child)) == 2.);
 }
 
 #ifndef __CPROVER
@@ -588,16 +588,16 @@ def validate(solution: Table) -> None:
     assume(horse_keeper.animal == "horse")
     meredith_child = nondet(solution.rows)
     assume(meredith_child.child == "Meredith")
-    assert horse_keeper.music == "classical" and abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2.
-    assert horse_keeper.music == "classical" or abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2.
+    assert horse_keeper.music == "classical" and __CPROVER_abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2.
+    assert horse_keeper.music == "classical" or __CPROVER_abs(solution.rows.index(horse_keeper) - solution.rows.index(meredith_child)) == 2.
 """,
             """static void validate(struct Table solution) {
     typeof(__CPROVER_nondet_element(solution.rows)) horse_keeper = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(horse_keeper.animal == "horse");
     typeof(__CPROVER_nondet_element(solution.rows)) meredith_child = __CPROVER_nondet_element(solution.rows);
     __CPROVER_assume(meredith_child.child == "Meredith");
-    __CPROVER_assume(horse_keeper.music == "classical" && abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child)) == 2.);
-    __CPROVER_assume(horse_keeper.music == "classical" || abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child)) == 2.);
+    __CPROVER_assume(horse_keeper.music == "classical" && __CPROVER_abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child)) == 2.);
+    __CPROVER_assume(horse_keeper.music == "classical" || __CPROVER_abs(__CPROVER_index(solution.rows, horse_keeper) - __CPROVER_index(solution.rows, meredith_child)) == 2.);
 }
 
 #ifndef __CPROVER
