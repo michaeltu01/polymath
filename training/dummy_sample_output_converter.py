@@ -4,9 +4,9 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, TextIO
+from typing import Any
 
-from output.sample_output_converter import SampleOutputConverter
+from training.sample_output_converter import SampleOutputConverter
 
 
 class DummySampleOutputConverter(SampleOutputConverter):

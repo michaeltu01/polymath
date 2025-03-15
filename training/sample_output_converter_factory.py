@@ -4,9 +4,9 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-from output.dummy_sample_output_converter import DummySampleOutputConverter
-from output.sample_output_converter import SampleOutputConverter
 from plugin.plugin_loader import PluginLoader
+from training.dummy_sample_output_converter import DummySampleOutputConverter
+from training.sample_output_converter import SampleOutputConverter
 
 
 def create_sample_output_converter() -> SampleOutputConverter:

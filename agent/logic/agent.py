@@ -155,6 +155,7 @@ Constraints:
             "data structure"
         )
         if data_structure:
+            self.__result_trace.python_data_structure = data_structure
             return data_structure
         self.__logger.error("Failed to define solution data structure.")
         return None

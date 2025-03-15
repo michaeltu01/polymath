@@ -108,24 +108,25 @@ class LogicPyCDataStructureGenerator(CSTVisitor):
     """
 
     def __init__(self, module: Module) -> None:
-        self.module = module
-        self.field_initialisers: list[FieldInitialiser] = []
-        self.current_class: Optional[str] = None
-        self.seen_classes = set()
-        self.last_field_initialiser = FieldInitialiser()
+        super().__init__()
         self.c_harness = ""
-        self.is_in_init_fn = False
+        self.__module = module
+        self.__field_initialisers: list[FieldInitialiser] = []
+        self.__current_class: str = ""
+        self.__seen_classes: set[str] = set()
+        self.__last_field_initialiser = FieldInitialiser()
+        self.__is_in_init_fn = False
 
     def visit_ClassDef(self, node: ClassDef) -> Optional[bool]:
-        self.current_class = node.name.value
-        self.c_harness += f"""struct {self.current_class} {{
+        self.__current_class = node.name.value
+        self.c_harness += f"""struct {self.__current_class} {{
 """
 
     def leave_ClassDef(self, original_node: ClassDef) -> None:
         self.c_harness += """};
 
 """
-        for field_initialiser in self.field_initialisers:
+        for field_initialiser in self.__field_initialisers:
             if field_initialiser.domain is not None:
                 domain: FieldDomain = field_initialiser.domain
                 allowed_values: list[str] = domain.get_allowed_values()
@@ -137,15 +138,15 @@ class LogicPyCDataStructureGenerator(CSTVisitor):
 
         has_static_field_initialiser_constants: bool = any(
             field_initialiser.domain is not None
-            for field_initialiser in self.field_initialisers
+            for field_initialiser in self.__field_initialisers
         )
         if has_static_field_initialiser_constants:
             self.c_harness += f"\n"
 
-        self.c_harness += f"""static void init_{self.current_class}(struct {self.current_class} * instance) {{
+        self.c_harness += f"""static void init_{self.__current_class}(struct {self.__current_class} * instance) {{
 """
-        self.is_in_init_fn = True
-        for field_initialiser in self.field_initialisers:
+        self.__is_in_init_fn = True
+        for field_initialiser in self.__field_initialisers:
             if field_initialiser.is_unique and field_initialiser.domain is not None:
                 self.c_harness += f"""    __CPROVER_unique_domain(instance->{field_initialiser.field_name}, {field_initialiser.class_name}_{field_initialiser.field_name});
 """
@@ -168,21 +169,21 @@ class LogicPyCDataStructureGenerator(CSTVisitor):
         self.c_harness += f"""}}
 
 """
-        self.is_in_init_fn = False
-        self.field_initialisers.clear()
-        self.seen_classes.add(self.current_class)
-        self.current_class = None
+        self.__is_in_init_fn = False
+        self.__field_initialisers.clear()
+        self.__seen_classes.add(self.__current_class)
+        self.__current_class = ""
 
     def visit_Integer(self, node: Integer) -> Optional[bool]:
-        if self.is_in_init_fn:
-            self.c_harness += self.module.code_for_node(node)
+        if self.__is_in_init_fn:
+            self.c_harness += self.__module.code_for_node(node)
 
     def visit_SimpleString(self, node: SimpleString) -> Optional[bool]:
-        if self.is_in_init_fn:
-            self.c_harness += self.module.code_for_node(node)
+        if self.__is_in_init_fn:
+            self.c_harness += self.__module.code_for_node(node)
 
     def visit_List(self, node: List) -> Optional[bool]:
-        if self.is_in_init_fn:
+        if self.__is_in_init_fn:
             self.c_harness += "{"
             elements: Sequence[BaseElement] = node.elements
             if elements:
@@ -197,18 +198,18 @@ class LogicPyCDataStructureGenerator(CSTVisitor):
         name: str = node.value
         c_type: Optional[str] = _PYTHON_TO_C_TYPE.get(name)
         if c_type is not None:
-            self.last_field_initialiser.c_type = c_type
-            self.last_field_initialiser.init_fn_name = c_type
-        elif name in self.seen_classes:
-            self.last_field_initialiser.c_type = f"struct {name}"
-            self.last_field_initialiser.init_fn_name = name
+            self.__last_field_initialiser.c_type = c_type
+            self.__last_field_initialiser.init_fn_name = c_type
+        elif name in self.__seen_classes:
+            self.__last_field_initialiser.c_type = f"struct {name}"
+            self.__last_field_initialiser.init_fn_name = name
 
     def visit_Subscript(self, node: Subscript) -> Optional[bool]:
         value: BaseExpression = node.value
         if isinstance(value, Name):
             name: str = value.value
             if name == "Unique":
-                self.last_field_initialiser.is_unique = True
+                self.__last_field_initialiser.is_unique = True
             elif name == "Domain":
                 allowed_values: list[str] = []
                 for element in node.slice[1:]:
@@ -221,14 +222,14 @@ class LogicPyCDataStructureGenerator(CSTVisitor):
                                 if func_name.value == "range":
                                     start: Arg = value.args[0]
                                     stop: Arg = value.args[1]
-                                    self.last_field_initialiser.domain = (
+                                    self.__last_field_initialiser.domain = (
                                         RangeFieldDomain(start, stop)
                                     )
                         elif isinstance(value, SimpleString):
                             allowed_values.append(value.value)
 
                 if allowed_values:
-                    self.last_field_initialiser.domain = ValuesFieldDomain(
+                    self.__last_field_initialiser.domain = ValuesFieldDomain(
                         allowed_values
                     )
             elif name == "list":
@@ -236,22 +237,22 @@ class LogicPyCDataStructureGenerator(CSTVisitor):
                 if isinstance(slice, Index):
                     value: BaseExpression = slice.value
                     if isinstance(value, Integer):
-                        self.last_field_initialiser.array_size = int(value.value)
+                        self.__last_field_initialiser.array_size = int(value.value)
 
     def leave_AnnAssign(self, original_node: AnnAssign) -> None:
-        if self.current_class is not None:
+        if self.__current_class:
             value: Optional[BaseExpression] = original_node.value
             if value is not None:
-                self.last_field_initialiser.value = value
+                self.__last_field_initialiser.value = value
             target: BaseAssignTargetExpression = original_node.target
             if isinstance(target, Name):
                 field_name: str = target.value
-                self.last_field_initialiser.field_name = field_name
-                self.last_field_initialiser.class_name = self.current_class
-                self.field_initialisers.append(self.last_field_initialiser)
+                self.__last_field_initialiser.field_name = field_name
+                self.__last_field_initialiser.class_name = self.__current_class
+                self.__field_initialisers.append(self.__last_field_initialiser)
 
-                array_size: Optional[int] = self.last_field_initialiser.array_size
+                array_size: Optional[int] = self.__last_field_initialiser.array_size
                 array_suffix: str = f"[{array_size}]" if array_size is not None else ""
-                self.c_harness += f"""    {self.last_field_initialiser.c_type} {field_name}{array_suffix};
+                self.c_harness += f"""    {self.__last_field_initialiser.c_type} {field_name}{array_suffix};
 """
-                self.last_field_initialiser = FieldInitialiser()
+                self.__last_field_initialiser = FieldInitialiser()

@@ -25,11 +25,11 @@ from inference.chat_completion_factory import create_chat_completion
 from judge.json_judge import JsonJudge
 from judge.result_trace import ResultTrace
 from logger.logger_factory import LoggerFactory
-
-from output.sample_output_converter import SampleOutputConverter
-from output.sample_output_converter_factory import create_sample_output_converter
 from pyarrow import Table
 from pyarrow.parquet import ParquetFile
+
+from training.sample_output_converter import SampleOutputConverter
+from training.sample_output_converter_factory import create_sample_output_converter
 
 
 class ZebraBenchmark:

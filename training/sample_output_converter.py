@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from abc import ABC, abstractmethod
-from typing import Any, TextIO
+from typing import Any
 
 
 class SampleOutputConverter(ABC):
