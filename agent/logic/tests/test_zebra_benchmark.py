@@ -20,11 +20,11 @@ load_dotenv()
 
 class TestZebraBenchmark(IsolatedAsyncioTestCase):
 
-    def __init__(self, methodName="runTest"):
+    def __init__(self, methodName="runTest") -> None:
         super().__init__(methodName)
         self.maxDiff = None
 
-    def test_get_format(self):
+    def test_get_format(self) -> None:
         self.assertEqual(
             """{
     "solution": {
@@ -77,7 +77,92 @@ class TestZebraBenchmark(IsolatedAsyncioTestCase):
             ),
         )
 
-    async def test_end_to_end(self):
+    def test_convert_to_reference_solution_format(self) -> None:
+        self.assertEqual(
+            {
+                "header": [
+                    "House",
+                    "Name",
+                    "Nationality",
+                    "BookGenre",
+                    "Food",
+                    "Color",
+                    "Animal",
+                ],
+                "rows": [
+                    [
+                        "1",
+                        "Bob",
+                        "german",
+                        "mystery",
+                        "grilled cheese",
+                        "yellow",
+                        "dog",
+                    ],
+                    ["2", "Eric", "norwegian", "fantasy", "stew", "blue", "fish"],
+                    [
+                        "3",
+                        "Peter",
+                        "dane",
+                        "science fiction",
+                        "spaghetti",
+                        "green",
+                        "cat",
+                    ],
+                    ["4", "Arnold", "swede", "biography", "stir fry", "red", "bird"],
+                    ["5", "Alice", "brit", "romance", "pizza", "white", "horse"],
+                ],
+            },
+            ZebraBenchmark.convert_to_reference_solution_format(
+                """{
+    "solution": {
+        "House 1": {
+            "Name": "Bob",
+            "Nationality": "german",
+            "BookGenre": "mystery",
+            "Food": "grilled cheese",
+            "Color": "yellow",
+            "Animal": "dog"
+        },
+        "House 2": {
+            "Name": "Eric",
+            "Nationality": "norwegian",
+            "BookGenre": "fantasy",
+            "Food": "stew",
+            "Color": "blue",
+            "Animal": "fish"
+        },
+        "House 3": {
+            "Name": "Peter",
+            "Nationality": "dane",
+            "BookGenre": "science fiction",
+            "Food": "spaghetti",
+            "Color": "green",
+            "Animal": "cat"
+        },
+        "House 4": {
+            "Name": "Arnold",
+            "Nationality": "swede",
+            "BookGenre": "biography",
+            "Food": "stir fry",
+            "Color": "red",
+            "Animal": "bird"
+        },
+        "House 5": {
+            "Name": "Alice",
+            "Nationality": "brit",
+            "BookGenre": "romance",
+            "Food": "pizza",
+            "Color": "white",
+            "Animal": "horse"
+        }
+    }
+}"""
+            ),
+        )
+        pass
+
+    async def test_end_to_end(self) -> None:
         with NamedTemporaryFile() as eval_json_file:
             eval_json_file.close()
             eval_json_file_name: str = eval_json_file.name

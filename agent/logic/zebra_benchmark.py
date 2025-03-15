@@ -7,7 +7,9 @@
 import os
 from asyncio import Lock, run
 from io import StringIO
-from json import dumps
+from json import dumps, loads
+from logging import Logger
+from re import compile, fullmatch, Match, Pattern
 from types import TracebackType
 from typing import Any, Callable, Optional, Tuple
 
@@ -21,6 +23,7 @@ from aiofiles.threadpool.text import AsyncTextIOWrapper
 from concurrency.async_pool import AsyncPool
 
 from dotenv import load_dotenv
+from inference.chat_completion import Message
 from inference.chat_completion_factory import create_chat_completion
 from judge.json_judge import JsonJudge
 from judge.result_trace import ResultTrace
@@ -28,8 +31,12 @@ from logger.logger_factory import LoggerFactory
 from pyarrow import Table
 from pyarrow.parquet import ParquetFile
 
+from training.logic_rl_training_dialog import LogicRlTrainingDialog
 from training.sample_output_converter import SampleOutputConverter
 from training.sample_output_converter_factory import create_sample_output_converter
+
+
+_ZERO_EVAL_HOUSE_NAME_PATTERN: Pattern = compile("House ([\\d]*)")
 
 
 class ZebraBenchmark:
@@ -63,7 +70,13 @@ class ZebraBenchmark:
         self.__model_name: str = model_name
         self.__enable_stderr_log: bool = enable_stderr_log
         self.__filter_dataset: Callable[[dict[str, Any]], bool] = filter_dataset
-        self.__xlformers_output_dataset_context: Optional[AiofilesContextManager] = aiofiles.open(self.__eval_json_file_name.replace(".json", "-dataset.json"), "w") if generate_training_data else None
+        self.__xlformers_output_dataset_context: Optional[AiofilesContextManager] = (
+            aiofiles.open(
+                self.__eval_json_file_name.replace(".json", "-dataset.json"), "w"
+            )
+            if generate_training_data
+            else None
+        )
         self.__judge: Callable[[ResultTrace, Any], bool] = JsonJudge()
         self.__sample_output_converter: SampleOutputConverter = (
             create_sample_output_converter()
@@ -142,20 +155,45 @@ class ZebraBenchmark:
                 )
                 await agent.solve()
 
-        if self.__xlformers_output_dataset_context:
-            if self.__judge(result_trace, expected_solution):
-                # TODO: Produce VC GOTO binary
-                sample: Any = self.__sample_output_converter.convert([], {})
-                lines: list[str] = [dumps(sample)]
-                async with self.__xlformers_output_dataset_lock:
-                    await self.__xlformers_output_dataset.writelines(lines)
-        else:
+            logger: Logger = logger_factory(__name__)
+            if self.__xlformers_output_dataset_context:
+                hugging_face_solution: Optional[Any] = (
+                    ZebraBenchmark.convert_to_reference_solution_format(
+                        result_trace.solution
+                    )
+                )
+                if hugging_face_solution != expected_solution:
+                    logger.warning(
+                        f"""Discarding task `{task_id}` due to incorrect solution.
+Expected:
+```
+{dumps(expected_solution)}
+```
+Actual:
+```
+{dumps(result_trace.solution)}
+```
+"""
+                    )
+                elif not result_trace.python_data_structure:
+                    logger.error(
+                        f"Discarding task `{task_id}` due to missing data structure."
+                    )
+                else:
+                    # TODO: Produce VC GOTO binary
+                    dialog: list[Message] = LogicRlTrainingDialog.create(
+                        puzzle, result_trace.python_data_structure
+                    )
+                    sample: Any = self.__sample_output_converter.convert(dialog, {})
+                    lines: list[str] = [dumps(sample)]
+                    async with self.__xlformers_output_dataset_lock:
+                        await self.__xlformers_output_dataset.writelines(lines)
+
+        if not self.__xlformers_output_dataset_context:
             eval_json.append(
                 {
                     "session_id": task_id,
-                    "chat_history": [
-                        message.text for message in result_trace.messages
-                    ],
+                    "chat_history": [message.text for message in result_trace.messages],
                     "model_input": "n/a",
                     "output": [result_trace.solution],
                     "debug_output": [f"{log_stream.getvalue()}\n{repr(result_trace)}"],
@@ -189,6 +227,51 @@ class ZebraBenchmark:
         solution_container["solution"] = solution_format
         return dumps(solution_container, indent=4)
 
+    @staticmethod
+    def convert_to_reference_solution_format(solution: Optional[str]) -> Optional[Any]:
+        """
+        ZebraLogicBench has two solution formats: The HuggingFace dataset is
+        formatted in what we call the "reference" solution format, and the
+        ZeroEval benchmark evaluation tool accepts another format. This class
+        produces the latter, since we need to evaluate using ZeroEval. However,
+        when checking whether our scorer VCs are correct, we compare against the
+        ground truth in the HuggingFace dataset directly. To do so, we use this
+        function to convert the ZeroEval solution.
+
+        Args:
+            solution (str): Solution in ZeroEval format.
+        Returns:
+            solution in HuggingFace ZebraLogicBench format.
+        """
+        if not solution:
+            return None
+
+        header: list[str] = ["House"]
+        is_first_house: bool = True
+        zero_eval_solution: Any = loads(solution)["solution"]
+        num_houses: int = len(zero_eval_solution)
+        rows: list[list[str]] = [[] for _ in range(num_houses)]
+        for house_name, house in zero_eval_solution.items():
+            parsed: Optional[Match] = fullmatch(
+                _ZERO_EVAL_HOUSE_NAME_PATTERN, house_name
+            )
+            if not parsed:
+                return None
+
+            house_number: str = parsed.group(1)
+            house_index: int = int(house_number) - 1
+            row: list[str] = rows[house_index]
+            row.append(house_number)
+            for name, value in house.items():
+                row.append(value)
+                if is_first_house:
+                    header.append(name)
+            is_first_house = False
+        return {
+            "header": header,
+            "rows": rows,
+        }
+
 
 async def main():
     load_dotenv()
@@ -208,9 +291,6 @@ async def main():
             model[0],
             model[1],
             model[2],
-            True,
-            True,
-            lambda task: task["id"] == "lgp-test-5x6-16",
         ) as benchmark:
             await benchmark.run()
 

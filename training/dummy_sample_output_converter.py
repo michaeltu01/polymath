@@ -6,6 +6,7 @@
 
 from typing import Any
 
+from inference.chat_completion import Message
 from training.sample_output_converter import SampleOutputConverter
 
 
@@ -15,5 +16,5 @@ class DummySampleOutputConverter(SampleOutputConverter):
     implementation for your training data format.
     """
 
-    def convert(self, dialog: list[dict[str, str]], metadata: dict[str, Any]) -> Any:
+    def convert(self, dialog: list[Message], metadata: dict[str, Any]) -> Any:
         return {}

@@ -7,6 +7,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from inference.chat_completion import Message
+
 
 class SampleOutputConverter(ABC):
     """
@@ -16,7 +18,7 @@ class SampleOutputConverter(ABC):
     """
 
     @abstractmethod
-    def convert(self, dialog: list[dict[str, str]], metadata: dict[str, Any]) -> Any:
+    def convert(self, dialog: list[Message], metadata: dict[str, Any]) -> Any:
         """
         Takes the given user-agent dialog as well as any additional metadata
         necessary for training and writes them as a sample to output.
