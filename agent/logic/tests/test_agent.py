@@ -173,7 +173,7 @@ This data structure captures the unique attributes of each house, with each fiel
     meredith_parent = nondet(solution.houses)
     assume(horse_owner.animal == "horse")
     assume(meredith_parent.child == "Meredith")
-    assert abs(horse_owner.house_number - meredith_parent.house_number) == 2
+    assert __CPROVER_abs(horse_owner.house_number - meredith_parent.house_number) == 2
 
     # Clue 15: The person's child is named Bella is somewhere to the right of Peter.
     bella_parent = nondet(solution.houses)
@@ -201,7 +201,7 @@ This data structure captures the unique attributes of each house, with each fiel
     rock_lover = nondet(solution.houses)
     assume(bella_parent.child == "Bella")
     assume(rock_lover.music_genre == "rock")
-    assert abs(bella_parent.house_number - rock_lover.house_number) == 2
+    assert __CPROVER_abs(bella_parent.house_number - rock_lover.house_number) == 2
 
     # Clue 19: The person who is short is the cat lover.
     short_person = nondet(solution.houses)
@@ -225,7 +225,7 @@ This data structure captures the unique attributes of each house, with each fiel
     short_person = nondet(solution.houses)
     assume(penny_child.mother == "Penny")
     assume(short_person.height == "short")
-    assert abs(penny_child.house_number - short_person.house_number) == 3
+    assert __CPROVER_abs(penny_child.house_number - short_person.house_number) == 3
 
     # Clue 23: The person who loves hip-hop music is in the first house.
     hip_hop_lover = nondet(solution.houses)
@@ -320,7 +320,7 @@ def validate(solution: PuzzleSolution) -> None:
     meredith_parent = nondet(solution.houses)
     assume(horse_owner.animal == "horse")
     assume(meredith_parent.child == "Meredith")
-    assert abs(horse_owner.house_number - meredith_parent.house_number) == 2
+    assert __CPROVER_abs(horse_owner.house_number - meredith_parent.house_number) == 2
 
     # Clue 15: The person's child is named Bella is somewhere to the right of Peter.
     bella_parent = nondet(solution.houses)
@@ -348,7 +348,7 @@ def validate(solution: PuzzleSolution) -> None:
     rock_lover = nondet(solution.houses)
     assume(bella_parent.child == "Bella")
     assume(rock_lover.music_genre == "rock")
-    assert abs(bella_parent.house_number - rock_lover.house_number) == 2
+    assert __CPROVER_abs(bella_parent.house_number - rock_lover.house_number) == 2
 
     # Clue 19: The person who is short is the cat lover.
     short_person = nondet(solution.houses)
@@ -372,7 +372,7 @@ def validate(solution: PuzzleSolution) -> None:
     short_person = nondet(solution.houses)
     assume(penny_child.mother == "Penny")
     assume(short_person.height == "short")
-    assert abs(penny_child.house_number - short_person.house_number) == 3
+    assert __CPROVER_abs(penny_child.house_number - short_person.house_number) == 3
 
     # Clue 23: The person who loves hip-hop music is in the first house.
     hip_hop_lover = nondet(solution.houses)

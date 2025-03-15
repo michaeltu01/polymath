@@ -5,10 +5,40 @@
 # LICENSE file in the root directory of this source tree.
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
+from enum import auto, Enum
 from types import TracebackType
-from typing import Optional, Tuple
+from typing import Literal, Optional, Tuple
 
 from inference.finish_reason import FinishReason
+
+
+class Role(Enum):
+    """
+    Possible author roles of messages in a chat completions dialog.
+    """
+
+    # AI or assistant role
+    AI = auto()
+
+    # System prompt role
+    SYSTEM = auto()
+
+    # User role
+    USER = auto()
+
+
+@dataclass
+class Message:
+    """
+    Represents a single message in a chat completions API.
+    """
+
+    # Role of author of message.
+    role: Role
+
+    # Content of message.
+    text: str
 
 
 class ChatCompletion(ABC):
@@ -29,7 +59,7 @@ class ChatCompletion(ABC):
 
     @abstractmethod
     async def create(
-        self, conversation: list[dict[str, str]]
+        self, conversation: list[Message]
     ) -> Tuple[FinishReason, Optional[str]]:
         """
         Sends the given conversation to chat completions inference back-end.

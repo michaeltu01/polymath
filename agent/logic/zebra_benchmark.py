@@ -58,15 +58,12 @@ class ZebraBenchmark:
             from the benchmark set to run.
         """
         self.__eval_json_file_name = eval_json_file_name
-        self.__xlformers_output_dataset_context: AiofilesContextManager = aiofiles.open(
-            eval_json_file_name.replace(".json", "-dataset.json"), "w"
-        )
         self.__xlformers_output_dataset_lock = Lock()
         self.__generator: str = generator
         self.__model_name: str = model_name
         self.__enable_stderr_log: bool = enable_stderr_log
         self.__filter_dataset: Callable[[dict[str, Any]], bool] = filter_dataset
-        self.__generate_training_data: bool = generate_training_data
+        self.__xlformers_output_dataset_context: Optional[AiofilesContextManager] = aiofiles.open(self.__eval_json_file_name.replace(".json", "-dataset.json"), "w") if generate_training_data else None
         self.__judge: Callable[[ResultTrace, Any], bool] = JsonJudge()
         self.__sample_output_converter: SampleOutputConverter = (
             create_sample_output_converter()
@@ -78,7 +75,7 @@ class ZebraBenchmark:
         )
 
     async def __aenter__(self) -> "ZebraBenchmark":
-        if self.__generate_training_data:
+        if self.__xlformers_output_dataset_context:
             self.__xlformers_output_dataset: AsyncTextIOWrapper = (
                 await self.__xlformers_output_dataset_context.__aenter__()
             )
@@ -90,7 +87,7 @@ class ZebraBenchmark:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        if self.__generate_training_data:
+        if self.__xlformers_output_dataset_context:
             await self.__xlformers_output_dataset_context.__aexit__(
                 exc_type, exc_value, exc_tb
             )
@@ -111,7 +108,7 @@ class ZebraBenchmark:
 
         await pool.gather()
 
-        if self.__generate_training_data:
+        if self.__xlformers_output_dataset_context:
             # TODO: Write RL scorer metadata
             pass
         else:
@@ -145,7 +142,7 @@ class ZebraBenchmark:
                 )
                 await agent.solve()
 
-        if self.__generate_training_data:
+        if self.__xlformers_output_dataset_context:
             if self.__judge(result_trace, expected_solution):
                 # TODO: Produce VC GOTO binary
                 sample: Any = self.__sample_output_converter.convert([], {})
@@ -157,7 +154,7 @@ class ZebraBenchmark:
                 {
                     "session_id": task_id,
                     "chat_history": [
-                        message["text"] for message in result_trace.messages
+                        message.text for message in result_trace.messages
                     ],
                     "model_input": "n/a",
                     "output": [result_trace.solution],

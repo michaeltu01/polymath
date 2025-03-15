@@ -7,6 +7,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
+from inference.chat_completion import Message
+
 
 @dataclass
 class ResultTrace:
@@ -20,7 +22,7 @@ class ResultTrace:
     id: Any
 
     # All messages sent to the inference client.
-    messages: list[dict[str, str]] = field(default_factory=list)
+    messages: list[Message] = field(default_factory=list)
 
     # Python data structure representing problem solutions.
     python_data_structure: Optional[str] = None

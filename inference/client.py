@@ -8,15 +8,9 @@ import asyncio
 from logging import Logger
 from typing import Callable, Optional
 
-from inference.chat_completion import ChatCompletion
+from inference.chat_completion import ChatCompletion, Message, Role
 from inference.finish_reason import FinishReason
 
-# AI assistant role name
-AI: str = "ai"
-# User role name
-USER: str = "user"
-# System role name
-SYSTEM: str = "system"
 
 # Number of times we ask the model to continue or retry a request If the model hits a token limit or we get a failure HTTP status code.
 RETRY_LIMIT: int = 5
@@ -38,7 +32,7 @@ class InferenceClient:
         logger_factory: Callable[[str], Logger],
         chat_completion: ChatCompletion,
     ) -> None:
-        self.conversation: list[dict[str, str]] = []
+        self.conversation: list[Message] = []
         self.__logger: Logger = logger_factory(__name__)
         self.__chat_completion = chat_completion
 
@@ -79,19 +73,19 @@ class InferenceClient:
                 if last_newline_index != -1:
                     ai_response = ai_response[: last_newline_index + 1]
 
-                self.add_message(ai_response, AI)
+                self.add_message(ai_response, Role.AI)
                 multi_message_ai_response += ai_response
-                self.add_message(CONTINUATION_MESSAGE, USER)
+                self.add_message(CONTINUATION_MESSAGE, Role.USER)
                 continue
 
-            self.add_message(ai_response, AI)
+            self.add_message(ai_response, Role.AI)
             multi_message_ai_response += ai_response
             break
 
         return multi_message_ai_response
 
-    def add_message(self, text: str, role: str) -> None:
+    def add_message(self, text: str, role: Role) -> None:
         """
         Adds the given message to the conversation history.
         """
-        self.conversation.append({"text": text, "role": role})
+        self.conversation.append(Message(role, text))

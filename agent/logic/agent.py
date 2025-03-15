@@ -17,8 +17,8 @@ import aiofiles
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 from encoding.encoding import Encoding
-from inference.chat_completion import ChatCompletion
-from inference.client import InferenceClient, SYSTEM, USER
+from inference.chat_completion import ChatCompletion, Role
+from inference.client import InferenceClient
 
 from judge.result_trace import ResultTrace
 
@@ -149,8 +149,8 @@ Constraints:
         Returns:
             Python data structure that can contain puzzle solutions.
         """
-        self.__client.add_message(self.__engine_strategy.system_prompt, SYSTEM)
-        self.__client.add_message(self.__engine_strategy.data_structure_prompt, USER)
+        self.__client.add_message(self.__engine_strategy.system_prompt, Role.SYSTEM)
+        self.__client.add_message(self.__engine_strategy.data_structure_prompt, Role.USER)
         data_structure: Optional[str] = await self.__receive_code_response(
             "data structure"
         )
@@ -179,7 +179,7 @@ Constraints:
         while True:
             all_constraints: list[str] = []
             for constraints_prompt in self.__engine_strategy.constraints_prompt:
-                self.__client.add_message(constraints_prompt, USER)
+                self.__client.add_message(constraints_prompt, Role.USER)
                 constraints: Optional[str] = await self.__receive_code_response(
                     "validation function"
                 )
@@ -275,7 +275,7 @@ Constraints:
                         )
                         return None, False
 
-                    self.__client.add_message(self.__engine_strategy.retry_prompt, USER)
+                    self.__client.add_message(self.__engine_strategy.retry_prompt, Role.USER)
 
     async def __format_solution(self, solution: str) -> None:
         """
@@ -296,7 +296,7 @@ Constraints:
         )
         formatted_solution: Optional[str]
         if format_prompt:
-            self.__client.add_message(format_prompt, USER)
+            self.__client.add_message(format_prompt, Role.USER)
             formatted_solution = await self.__receive_code_response(
                 "formatted solution"
             )
@@ -336,7 +336,7 @@ Constraints:
             if attempt >= RETRY_COUNT:
                 return None
             self.__client.add_message(
-                NO_CODE_FOUND_MESSAGE.format(expected_content_description), USER
+                NO_CODE_FOUND_MESSAGE.format(expected_content_description), Role.USER
             )
 
     @staticmethod

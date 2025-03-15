@@ -8,7 +8,8 @@ from logging import getLogger
 from unittest import IsolatedAsyncioTestCase
 
 from dotenv import load_dotenv
-from inference.client import InferenceClient, SYSTEM, USER
+from inference.chat_completion import Message, Role
+from inference.client import InferenceClient
 from inference.tests.mock_chat_completion import MockChatCompletion
 
 
@@ -20,12 +21,12 @@ class TestInferenceClient(IsolatedAsyncioTestCase):
     async def test_single(self) -> None:
         async with MockChatCompletion(["Hello, I am an AI."]) as chat_completion:
             client = InferenceClient(getLogger, chat_completion)
-            client.add_message("Say hello, please!", USER)
+            client.add_message("Say hello, please!", Role.USER)
             self.assertEqual("Hello, I am an AI.", await client.send())
             self.assertEqual(
                 [
-                    {"text": "Say hello, please!", "role": "user"},
-                    {"text": "Hello, I am an AI.", "role": "ai"},
+                    Message(Role.USER, "Say hello, please!"),
+                    Message(Role.AI, "Hello, I am an AI."),
                 ],
                 client.conversation,
             )
@@ -33,14 +34,14 @@ class TestInferenceClient(IsolatedAsyncioTestCase):
     async def test_conversation(self) -> None:
         async with MockChatCompletion(["Hi Mate, I am an AI."]) as chat_completion:
             client = InferenceClient(getLogger, chat_completion)
-            client.add_message("Address the user as `mate`.", SYSTEM)
-            client.add_message("Hi! How are you?", USER)
+            client.add_message("Address the user as `mate`.", Role.SYSTEM)
+            client.add_message("Hi! How are you?", Role.USER)
             self.assertEqual("Hi Mate, I am an AI.", await client.send())
             self.assertEqual(
                 [
-                    {"text": "Address the user as `mate`.", "role": "system"},
-                    {"text": "Hi! How are you?", "role": "user"},
-                    {"text": "Hi Mate, I am an AI.", "role": "ai"},
+                    Message(Role.SYSTEM, "Address the user as `mate`."),
+                    Message(Role.USER, "Hi! How are you?"),
+                    Message(Role.AI, "Hi Mate, I am an AI."),
                 ],
                 client.conversation,
             )
