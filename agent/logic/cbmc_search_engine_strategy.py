@@ -144,6 +144,7 @@ class CBMCSearchEngineStrategy(EngineStrategy):
         return [
             "cbmc",
             "-D__CPROVER",
+            "--no-standard-checks",
             "--json-ui",
             "--trace",
             solver_input_file,
