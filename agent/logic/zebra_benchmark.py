@@ -331,9 +331,6 @@ async def main():
             model[0],
             model[1],
             model[2],
-            True,
-            True,
-            lambda task: task["id"] == "lgp-test-5x6-16",
         ) as benchmark:
             await benchmark.run()
 
