@@ -20,7 +20,7 @@ starting point.
 
 Set up Conda environment:
 ```bash
-conda create --yes --file environment.yml
+conda env create --file environment.yml
 conda activate polymath
 ```
 
