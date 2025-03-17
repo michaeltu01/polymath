@@ -25,7 +25,6 @@ from concurrency.async_pool import AsyncPool
 from dotenv import load_dotenv
 from inference.chat_completion import Message
 from inference.chat_completion_factory import create_chat_completion
-from judge.json_judge import JsonJudge
 from judge.result_trace import ResultTrace
 from logger.logger_factory import LoggerFactory
 from pyarrow import Table
@@ -77,7 +76,6 @@ class ZebraBenchmark:
             if generate_training_data
             else None
         )
-        self.__judge: Callable[[ResultTrace, Any], bool] = JsonJudge()
         self.__sample_output_converter: SampleOutputConverter = (
             create_sample_output_converter()
         )
@@ -121,10 +119,7 @@ class ZebraBenchmark:
 
         await pool.gather()
 
-        if self.__xlformers_output_dataset_context:
-            # TODO: Write RL scorer metadata
-            pass
-        else:
+        if not self.__xlformers_output_dataset_context:
             async with aiofiles.open(self.__eval_json_file_name, "w") as file:
                 await file.write(dumps(eval_json, indent=4))
 
