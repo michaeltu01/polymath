@@ -5,8 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
-from asyncio import create_subprocess_exec, wait_for
-from asyncio.subprocess import PIPE, Process
 from logging import Logger
 from re import compile, DOTALL, Match, Pattern
 from tempfile import gettempdir
@@ -15,7 +13,7 @@ from typing import Callable, Optional, Tuple
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 from aiofiles.tempfile import NamedTemporaryFile
-from encoding.encoding import Encoding
+from concurrency.subprocess import Subprocess
 from inference.chat_completion import ChatCompletion, Role
 from inference.client import InferenceClient
 
@@ -230,19 +228,12 @@ Constraints:
                 await file.close()
 
                 solver_input_file: str = str(file.name)
-                process: Process
-                stdout_bytes: bytes
-                stderr_bytes: bytes
                 try:
-                    process = await create_subprocess_exec(
+                    solver_exit_code, stdout, stderr = await Subprocess.run(
                         *self.__engine_strategy.generate_solver_invocation_command(
                             solver_input_file
                         ),
-                        stdout=PIPE,
-                        stderr=PIPE,
-                    )
-                    stdout_bytes, stderr_bytes = await wait_for(
-                        process.communicate(), _SOLVER_TIMEOUT
+                        timeout_in_s=_SOLVER_TIMEOUT,
                     )
                 except TimeoutError:
                     self.__logger.exception(
@@ -255,10 +246,6 @@ Constraints:
 """
                     )
                     return None, True
-
-                solver_exit_code = process.returncode or 0
-                stdout = Encoding.decode_process_output(stdout_bytes)
-                stderr = Encoding.decode_process_output(stderr_bytes)
 
             self.__result_trace.solver_output = f"{stdout}{stderr}"
             self.__result_trace.solver_exit_code = solver_exit_code
