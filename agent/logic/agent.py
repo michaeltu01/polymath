@@ -79,7 +79,6 @@ class LogicAgent:
         self.__client = InferenceClient(logger_factory, chat_completion)
         self.__result_trace: ResultTrace = result_trace
         self.__collect_pyre_type_information: bool = collect_pyre_type_information
-        self.__temp_dir: str = gettempdir()
 
     async def solve(self) -> None:
         """

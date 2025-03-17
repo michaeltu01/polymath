@@ -30,6 +30,7 @@ from logger.logger_factory import LoggerFactory
 from pyarrow import Table
 from pyarrow.parquet import ParquetFile
 
+from training.cbmc_scorer_vc_factory import CBMCScorerVerificationConstraintsFactory
 from training.logic_rl_training_dialog import LogicRlTrainingDialog
 from training.sample_output_converter import SampleOutputConverter
 from training.sample_output_converter_factory import create_sample_output_converter
@@ -64,12 +65,12 @@ class ZebraBenchmark:
             from the benchmark set to run.
         """
         self.__eval_json_file_name = eval_json_file_name
-        self.__xlformers_output_dataset_lock = Lock()
+        self.__output_dataset_lock = Lock()
         self.__generator: str = generator
         self.__model_name: str = model_name
         self.__enable_stderr_log: bool = enable_stderr_log
         self.__filter_dataset: Callable[[dict[str, Any]], bool] = filter_dataset
-        self.__xlformers_output_dataset_context: Optional[AiofilesContextManager] = (
+        self.__output_dataset_context: Optional[AiofilesContextManager] = (
             aiofiles.open(
                 self.__eval_json_file_name.replace(".json", "-dataset.json"), "w"
             )
@@ -86,9 +87,9 @@ class ZebraBenchmark:
         )
 
     async def __aenter__(self) -> "ZebraBenchmark":
-        if self.__xlformers_output_dataset_context:
-            self.__xlformers_output_dataset: AsyncTextIOWrapper = (
-                await self.__xlformers_output_dataset_context.__aenter__()
+        if self.__output_dataset_context:
+            self.__output_dataset: AsyncTextIOWrapper = (
+                await self.__output_dataset_context.__aenter__()
             )
         return self
 
@@ -98,10 +99,8 @@ class ZebraBenchmark:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ) -> None:
-        if self.__xlformers_output_dataset_context:
-            await self.__xlformers_output_dataset_context.__aexit__(
-                exc_type, exc_value, exc_tb
-            )
+        if self.__output_dataset_context:
+            await self.__output_dataset_context.__aexit__(exc_type, exc_value, exc_tb)
 
     async def run(self) -> None:
         """
@@ -119,7 +118,7 @@ class ZebraBenchmark:
 
         await pool.gather()
 
-        if not self.__xlformers_output_dataset_context:
+        if not self.__output_dataset_context:
             async with aiofiles.open(self.__eval_json_file_name, "w") as file:
                 await file.write(dumps(eval_json, indent=4))
 
@@ -150,41 +149,12 @@ class ZebraBenchmark:
                 )
                 await agent.solve()
 
-            logger: Logger = logger_factory(__name__)
-            if self.__xlformers_output_dataset_context:
-                hugging_face_solution: Optional[Any] = (
-                    ZebraBenchmark.convert_to_reference_solution_format(
-                        result_trace.solution
-                    )
+            if self.__output_dataset_context:
+                await self.write_sample(
+                    task_id, puzzle, result_trace, expected_solution, logger_factory
                 )
-                if hugging_face_solution != expected_solution:
-                    logger.warning(
-                        f"""Discarding task `{task_id}` due to incorrect solution.
-Expected:
-```
-{dumps(expected_solution)}
-```
-Actual:
-```
-{dumps(result_trace.solution)}
-```
-"""
-                    )
-                elif not result_trace.python_data_structure:
-                    logger.error(
-                        f"Discarding task `{task_id}` due to missing data structure."
-                    )
-                else:
-                    # TODO: Produce VC GOTO binary
-                    dialog: list[Message] = LogicRlTrainingDialog.create(
-                        puzzle, result_trace.python_data_structure
-                    )
-                    sample: Any = self.__sample_output_converter.convert(dialog, {})
-                    lines: list[str] = [dumps(sample)]
-                    async with self.__xlformers_output_dataset_lock:
-                        await self.__xlformers_output_dataset.writelines(lines)
 
-        if not self.__xlformers_output_dataset_context:
+        if not self.__output_dataset_context:
             eval_json.append(
                 {
                     "session_id": task_id,
@@ -201,6 +171,81 @@ Actual:
                     "created_at": task["created_at"],
                 }
             )
+
+    async def write_sample(
+        self,
+        task_id: str,
+        puzzle: str,
+        result_trace: ResultTrace,
+        expected_solution: Any,
+        logger_factory: Callable[[str], Logger],
+    ) -> None:
+        """
+        When generating training data, this method generates a simple RL
+        training sample based on a correctly solved benchmark task.
+
+        Args:
+            task_id (str): ID of benchmark task on which the generated sample is
+            based. This is mostly used for logging.
+            puzzle (str): Puzzle being solved. This is used to generate the
+            dialog in the training sample.
+            result_trace (ResultTrace): Contains the solution data structure,
+            the generated solution, and the solver constraints. All of these are
+            used to generate scorer VCs.
+            expected_solution (Any): Ground truth to filter out incorrect VCs
+            from training data.
+            logger_factory (Callable[[str], Logger]): Used to write logs from
+            various sources
+        """
+        logger: Logger = logger_factory(__name__)
+        hugging_face_solution: Optional[Any] = (
+            ZebraBenchmark.convert_to_reference_solution_format(result_trace.solution)
+        )
+        if hugging_face_solution != expected_solution:
+            logger.warning(
+                f"""Discarding task `{task_id}` due to incorrect solution.
+Expected:
+```
+{dumps(expected_solution)}
+```
+Actual:
+```
+{dumps(hugging_face_solution)}
+```
+"""
+            )
+            return
+
+        if not result_trace.python_data_structure:
+            logger.error(f"Discarding task `{task_id}` due to missing data structure.")
+            return
+
+        if not result_trace.solver_constraints:
+            logger.error(
+                f"Discarding task `{task_id}` due to missing solver synthesis constraints."
+            )
+            return
+
+        cbmc_scorer_vc_factory = CBMCScorerVerificationConstraintsFactory(
+            logger_factory
+        )
+        scorer_vc: Optional[str] = await cbmc_scorer_vc_factory.convert(
+            result_trace.solver_constraints
+        )
+        if not scorer_vc:
+            logger.error(
+                f"Discarding task `{task_id}` due to failed scorer VC creation."
+            )
+            return
+
+        dialog: list[Message] = LogicRlTrainingDialog.create(
+            puzzle, result_trace.python_data_structure
+        )
+        metadata: dict[str, Any] = {"scorer_vc": scorer_vc}
+        sample: Any = self.__sample_output_converter.convert(dialog, metadata)
+        lines: list[str] = [dumps(sample)]
+        async with self.__output_dataset_lock:
+            await self.__output_dataset.writelines(lines)
 
     @staticmethod
     def get_format(solution_placeholder: dict[str, Any]) -> str:
@@ -286,6 +331,9 @@ async def main():
             model[0],
             model[1],
             model[2],
+            True,
+            True,
+            lambda task: task["id"] == "lgp-test-5x6-16",
         ) as benchmark:
             await benchmark.run()
 
