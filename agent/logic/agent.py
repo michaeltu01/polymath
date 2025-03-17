@@ -11,11 +11,10 @@ from logging import Logger
 from re import compile, DOTALL, Match, Pattern
 from tempfile import gettempdir
 from typing import Callable, Optional, Tuple
-from uuid import uuid4
 
-import aiofiles
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
+from aiofiles.tempfile import NamedTemporaryFile
 from encoding.encoding import Encoding
 from inference.chat_completion import ChatCompletion, Role
 from inference.client import InferenceClient
@@ -150,7 +149,9 @@ Constraints:
             Python data structure that can contain puzzle solutions.
         """
         self.__client.add_message(self.__engine_strategy.system_prompt, Role.SYSTEM)
-        self.__client.add_message(self.__engine_strategy.data_structure_prompt, Role.USER)
+        self.__client.add_message(
+            self.__engine_strategy.data_structure_prompt, Role.USER
+        )
         data_structure: Optional[str] = await self.__receive_code_response(
             "data structure"
         )
@@ -219,43 +220,46 @@ Constraints:
             solver_input_file_suffix: str = (
                 self.__engine_strategy.solver_input_file_suffix
             )
-            solver_input_file: str = os.path.join(
-                self.__temp_dir, f"{uuid4()}{solver_input_file_suffix}"
-            )
-            async with aiofiles.open(solver_input_file, mode="x") as file:
+            solver_exit_code: int
+            stdout: str
+            stderr: str
+            async with NamedTemporaryFile(
+                mode="w", suffix=solver_input_file_suffix, delete_on_close=False
+            ) as file:
                 await file.write(solver_constraints)
+                await file.close()
 
-            process: Process
-            stdout_bytes: bytes
-            stderr_bytes: bytes
-            try:
-                process = await create_subprocess_exec(
-                    *self.__engine_strategy.generate_solver_invocation_command(
-                        solver_input_file
-                    ),
-                    stdout=PIPE,
-                    stderr=PIPE,
-                )
-                stdout_bytes, stderr_bytes = await wait_for(
-                    process.communicate(), _SOLVER_TIMEOUT
-                )
-            except TimeoutError:
-                self.__logger.exception(
-                    f"""Solver timeout.
+                solver_input_file: str = str(file.name)
+                process: Process
+                stdout_bytes: bytes
+                stderr_bytes: bytes
+                try:
+                    process = await create_subprocess_exec(
+                        *self.__engine_strategy.generate_solver_invocation_command(
+                            solver_input_file
+                        ),
+                        stdout=PIPE,
+                        stderr=PIPE,
+                    )
+                    stdout_bytes, stderr_bytes = await wait_for(
+                        process.communicate(), _SOLVER_TIMEOUT
+                    )
+                except TimeoutError:
+                    self.__logger.exception(
+                        f"""Solver timeout.
 Python Code:
 {self.__result_trace.python_code}
 
 Constraints:
 {self.__result_trace.solver_constraints}
 """
-                )
-                return None, True
-            finally:
-                os.remove(solver_input_file)
+                    )
+                    return None, True
 
-            solver_exit_code: int = process.returncode or 0
-            stdout: str = Encoding.decode_process_output(stdout_bytes)
-            stderr: str = Encoding.decode_process_output(stderr_bytes)
+                solver_exit_code = process.returncode or 0
+                stdout = Encoding.decode_process_output(stdout_bytes)
+                stderr = Encoding.decode_process_output(stderr_bytes)
+
             self.__result_trace.solver_output = f"{stdout}{stderr}"
             self.__result_trace.solver_exit_code = solver_exit_code
 
@@ -275,7 +279,9 @@ Constraints:
                         )
                         return None, False
 
-                    self.__client.add_message(self.__engine_strategy.retry_prompt, Role.USER)
+                    self.__client.add_message(
+                        self.__engine_strategy.retry_prompt, Role.USER
+                    )
 
     async def __format_solution(self, solution: str) -> None:
         """
