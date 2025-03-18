@@ -6,9 +6,12 @@
 
 
 from json import dumps
-from libcst import Module, parse_module
+
 from inference.chat_completion import Message, Role
-from training.training_data_structure_converter import PythonDataStructureToJsonSchemaConverter
+from libcst import Module, parse_module
+from training.training_data_structure_converter import (
+    PythonDataStructureToJsonSchemaConverter,
+)
 
 
 # System prompt instructing the model to generate a JSON output that we can
@@ -19,7 +22,7 @@ _LOGIC_RL_TRAINING_DIALOG_SYSTEM_PROMPT_TEMPLATE: str = """You are an expert log
 {}
 ```
 
-Now answer the user's question in this format.
+Please give only the JSON response, and do not add any additional comments, so that I can easily parse it. Here is the user's question:
 """
 
 
@@ -46,6 +49,9 @@ class LogicRlTrainingDialog:
         json_schema: str = dumps(visitor.json_schema, indent=4)
 
         return [
-            Message(Role.SYSTEM, _LOGIC_RL_TRAINING_DIALOG_SYSTEM_PROMPT_TEMPLATE.format(json_schema)),
+            Message(
+                Role.SYSTEM,
+                _LOGIC_RL_TRAINING_DIALOG_SYSTEM_PROMPT_TEMPLATE.format(json_schema),
+            ),
             Message(Role.USER, user_question),
         ]

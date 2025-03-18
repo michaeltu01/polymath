@@ -7,7 +7,7 @@
 import os
 from asyncio import Lock, run
 from io import StringIO
-from json import dumps, loads
+from json import dumps, JSONDecodeError, loads
 from logging import Logger
 from re import compile, fullmatch, Match, Pattern
 from types import TracebackType
@@ -32,6 +32,7 @@ from pyarrow.parquet import ParquetFile
 
 from training.cbmc_scorer_vc_factory import CBMCScorerVerificationConstraintsFactory
 from training.logic_rl_training_dialog import LogicRlTrainingDialog
+from training.lowercase_json import LowerCaseJson
 from training.sample_output_converter import SampleOutputConverter
 from training.sample_output_converter_factory import create_sample_output_converter
 
@@ -198,10 +199,22 @@ class ZebraBenchmark:
             various sources
         """
         logger: Logger = logger_factory(__name__)
-        hugging_face_solution: Optional[Any] = (
-            ZebraBenchmark.convert_to_reference_solution_format(result_trace.solution)
-        )
-        if hugging_face_solution != expected_solution:
+        try:
+            hugging_face_solution: Optional[dict[str, Any]] = (
+                ZebraBenchmark.convert_to_reference_solution_format(
+                    result_trace.solution
+                )
+            )
+        except JSONDecodeError:
+            logger.exception(
+                f"""Discarding task `{task_id}` due to JSON parser error in solution:
+```
+{result_trace.solution}
+```"""
+            )
+            return
+
+        if not LowerCaseJson.are_equal(hugging_face_solution, expected_solution):
             logger.warning(
                 f"""Discarding task `{task_id}` due to incorrect solution.
 Expected:
@@ -243,9 +256,9 @@ Actual:
         )
         metadata: dict[str, Any] = {"scorer_vc": scorer_vc}
         sample: Any = self.__sample_output_converter.convert(dialog, metadata)
-        lines: list[str] = [dumps(sample)]
+        line: str = f"{dumps(sample)}\n"
         async with self.__output_dataset_lock:
-            await self.__output_dataset.writelines(lines)
+            await self.__output_dataset.write(line)
 
     @staticmethod
     def get_format(solution_placeholder: dict[str, Any]) -> str:
@@ -268,7 +281,9 @@ Actual:
         return dumps(solution_container, indent=4)
 
     @staticmethod
-    def convert_to_reference_solution_format(solution: Optional[str]) -> Optional[Any]:
+    def convert_to_reference_solution_format(
+        solution: Optional[str],
+    ) -> Optional[dict[str, Any]]:
         """
         ZebraLogicBench has two solution formats: The HuggingFace dataset is
         formatted in what we call the "reference" solution format, and the
