@@ -64,6 +64,7 @@ Output:
             exit_code, stdout, stderr = await Subprocess.run(
                 "goto-instrument",
                 "--polymath-convert",
+                "--polymath-lowercase",
                 goto_file_name,
                 scorer_vc_file_name,
             )
