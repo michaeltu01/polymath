@@ -31,8 +31,62 @@ from libcst import (
 from libcst.metadata import TypeInferenceProvider
 
 
+# Function used for existential quantification in Logic.py
+SOME: str = "some"
+
 # Types that we support for `Unique[...]` attributes.
-_SupportedUniqueIdTypes: TypeAlias = Union[str, int, float, bool]
+SupportedUniqueIdTypes: TypeAlias = Union[str, int, float, bool]
+
+
+class UniquePropertyToObjectId:
+
+    def __init__(self) -> None:
+        self.__unique_property_to_next_id: dict[str, dict[str, int]] = {}
+        self.__unique_property_to_id: dict[
+            str, dict[str, dict[SupportedUniqueIdTypes, int]]
+        ] = {}
+        self.id_expression: dict[int, Subscript] = {}
+
+    def get_object_id(
+        self, class_type: str, attribute_name: str, value: SupportedUniqueIdTypes
+    ) -> Optional[int]:
+        object_id: int = self.__get_or_create_object_id(
+            class_type, attribute_name, value, False
+        )
+        return object_id if object_id != -1 else None
+
+    def get_or_create_object_id(
+        self, class_type: str, attribute_name: str, value: SupportedUniqueIdTypes
+    ) -> int:
+        return self.__get_or_create_object_id(class_type, attribute_name, value, True)
+
+    def __get_or_create_object_id(
+        self,
+        class_type: str,
+        attribute_name: str,
+        value: SupportedUniqueIdTypes,
+        generate_if_missing: bool,
+    ) -> int:
+        property_to_id: dict[str, dict[SupportedUniqueIdTypes, int]] = (
+            self.__unique_property_to_id.setdefault(class_type, {})
+        )
+        value_to_id: dict[SupportedUniqueIdTypes, int] = property_to_id.setdefault(
+            attribute_name, {}
+        )
+
+        object_id: Optional[int] = value_to_id.get(value)
+        if object_id is not None:
+            return object_id
+        if not generate_if_missing:
+            return -1
+
+        property_to_next_id: dict[str, int] = (
+            self.__unique_property_to_next_id.setdefault(class_type, {})
+        )
+        object_id = property_to_next_id.setdefault(attribute_name, 0)
+        value_to_id[value] = object_id
+        property_to_next_id[attribute_name] = object_id + 1
+        return object_id
 
 
 class CollectUniquelyIdentifiedVars(CSTVisitor):
@@ -61,11 +115,8 @@ class CollectUniquelyIdentifiedVars(CSTVisitor):
         super().__init__()
         self.__name_to_universe_collection: dict[str, BaseExpression] = {}
         self.__scope_manager = ScopeManager()
-        self.__unique_property_to_id: dict[
-            str, dict[str, dict[_SupportedUniqueIdTypes, int]]
-        ] = {}
-        self.__unique_property_to_next_id: dict[str, dict[str, int]] = {}
         self.replacements: dict[str, Subscript] = {}
+        self.unique_property_to_object_id = UniquePropertyToObjectId()
 
     def leave_IndentedBlock(self, original_node: IndentedBlock) -> None:
         self.__scope_manager.end_scope()
@@ -112,24 +163,12 @@ class CollectUniquelyIdentifiedVars(CSTVisitor):
         if universe_collection is None:
             return
 
-        property_to_id: dict[str, dict[_SupportedUniqueIdTypes, int]] = (
-            self.__unique_property_to_id.setdefault(class_type, {})
+        object_id: int = self.unique_property_to_object_id.get_or_create_object_id(
+            class_type, attr, value
         )
-        value_to_id: dict[_SupportedUniqueIdTypes, int] = property_to_id.setdefault(
-            attr, {}
-        )
-
-        object_id: Optional[int] = value_to_id.get(value)
-        if object_id is None:
-            property_to_next_id: dict[str, int] = (
-                self.__unique_property_to_next_id.setdefault(class_type, {})
-            )
-            object_id = property_to_next_id.setdefault(attr, 0)
-            value_to_id[value] = object_id
-            property_to_next_id[attr] = object_id + 1
-
         index = Index(Integer(str(object_id)))
         replacement = Subscript(universe_collection, [SubscriptElement(index)])
+        self.unique_property_to_object_id.id_expression[object_id] = replacement
         self.replacements[qualified_name] = replacement
 
     def visit_Assign(self, node: Assign) -> Optional[bool]:
@@ -140,7 +179,7 @@ class CollectUniquelyIdentifiedVars(CSTVisitor):
             qualified_name: str = self.__scope_manager.get_qualified_name(var)
             if isinstance(value, Call):
                 func: BaseExpression = value.func
-                if isinstance(func, Name) and func.value == "some":
+                if isinstance(func, Name) and func.value == SOME:
                     arg: BaseExpression = value.args[0].value
                     self.__name_to_universe_collection[qualified_name] = arg
 
@@ -150,7 +189,7 @@ class CollectUniquelyIdentifiedVars(CSTVisitor):
     @staticmethod
     def __get_atrribute_and_value(
         left: BaseExpression, comparator: BaseExpression
-    ) -> tuple[Optional[Attribute], Optional[_SupportedUniqueIdTypes]]:
+    ) -> tuple[Optional[Attribute], Optional[SupportedUniqueIdTypes]]:
         """
         Helper to convert the left-hand and right-hand side of an assertion to
         an attribute and a supported unique ID type, irrespective of which is
@@ -163,23 +202,23 @@ class CollectUniquelyIdentifiedVars(CSTVisitor):
             Tuple of attribute and its asserted value. If either value in the
             tuple is None, no match was found.
         """
-        value: Optional[_SupportedUniqueIdTypes] = (
-            CollectUniquelyIdentifiedVars.__get_value(left)
+        value: Optional[SupportedUniqueIdTypes] = (
+            CollectUniquelyIdentifiedVars.get_value(left)
         )
         if value:
             if isinstance(comparator, Attribute):
                 return comparator, value
         else:
-            value = CollectUniquelyIdentifiedVars.__get_value(comparator)
+            value = CollectUniquelyIdentifiedVars.get_value(comparator)
             if value and isinstance(left, Attribute):
                 return left, value
 
         return None, None
 
     @staticmethod
-    def __get_value(
+    def get_value(
         value: BaseExpression,
-    ) -> Optional[_SupportedUniqueIdTypes]:
+    ) -> Optional[SupportedUniqueIdTypes]:
         """
         Converts a libCST value to a Python value that we can compare.
 
