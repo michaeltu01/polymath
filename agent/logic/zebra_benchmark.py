@@ -4,11 +4,11 @@
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
-import os
 from asyncio import Lock, run
 from io import StringIO
 from json import dumps, JSONDecodeError, loads
 from logging import Logger
+from os import path
 from re import compile, fullmatch, Match, Pattern
 from types import TracebackType
 from typing import Any, Callable, Optional, Tuple
@@ -37,6 +37,7 @@ from training.sample_output_converter import SampleOutputConverter
 from training.sample_output_converter_factory import create_sample_output_converter
 
 
+# Used to extract the house number from a formatted solution.
 _ZERO_EVAL_HOUSE_NAME_PATTERN: Pattern = compile("House ([\\d]*)")
 
 
@@ -52,6 +53,7 @@ class ZebraBenchmark:
         model_name: str,
         enable_stderr_log: bool = True,
         generate_training_data: bool = False,
+        zebra_input_dataset_path: Optional[str] = None,
         filter_dataset: Callable[[dict[str, Any]], bool] = lambda task: True,
     ) -> None:
         """
@@ -62,6 +64,12 @@ class ZebraBenchmark:
             enable_stderr_log (bool): Indicates whether log messages should be
             writting to stderr as well as the result JSON. Disabled for unit
             tests.
+            generate_training_data (bool): Indicates whether we are evaluating
+            against a Zebra benchmark, or whether we are generating training
+            data using Logic.py.
+            zebra_input_dataset_path (Optional[str]): Zebra logic dataset used
+            as a benchmark or to generate training data. If not set, the
+            default ZebraLogicBench dataset is used.
             filter_dataset (Callable[[Any], Any]): Filter to select which tasks
             from the benchmark set to run.
         """
@@ -82,10 +90,13 @@ class ZebraBenchmark:
             create_sample_output_converter()
         )
 
-        module_path: str = os.path.dirname(__file__)
-        self.__zebra_input_dataset_path: str = os.path.join(
-            module_path, "../../datasets/grid_mode/test-00000-of-00001.parquet"
-        )
+        if zebra_input_dataset_path is not None:
+            self.__zebra_input_dataset_path: str = zebra_input_dataset_path
+        else:
+            module_path: str = path.dirname(__file__)
+            self.__zebra_input_dataset_path: str = path.join(
+                module_path, "../../datasets/grid_mode/test-00000-of-00001.parquet"
+            )
 
     async def __aenter__(self) -> "ZebraBenchmark":
         if self.__output_dataset_context:
@@ -115,8 +126,7 @@ class ZebraBenchmark:
             rows: list[dict[str, Any]] = table.to_pylist()
             for task in rows:
                 if self.__filter_dataset(task):
-                    pool.submit(lambda task=task: self.run_task(eval_json, task))
-
+                    await pool.submit(lambda task=task: self.run_task(eval_json, task))
         await pool.gather()
 
         if not self.__output_dataset_context:
@@ -330,13 +340,13 @@ Actual:
 
 async def main():
     load_dotenv()
-    module_path: str = os.path.dirname(__file__)
-    base_path: str = os.path.abspath(
-        os.path.join(module_path, "../../lib/ZeroEval/result_dirs/zebra-grid/")
+    module_path: str = path.dirname(__file__)
+    base_path: str = path.abspath(
+        path.join(module_path, "../../lib/ZeroEval/result_dirs/zebra-grid/")
     )
     models: list[Tuple[str, str, str]] = [
         (
-            os.path.join(base_path, "Meta-Llama-3.1-70B-Instruct@reasoning.json"),
+            path.join(base_path, "Meta-Llama-3.1-70B-Instruct@reasoning.json"),
             "meta-llama/Meta-Llama-3.1-70B-Instruct@reasoning",
             "llama3.1-70b-instruct",
         ),

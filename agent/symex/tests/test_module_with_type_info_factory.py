@@ -44,5 +44,5 @@ class TestModuleWithTypeInfoFactory(IsolatedAsyncioTestCase):
     async def test_multiple(self) -> None:
         pool = AsyncPool(10)
         for _ in range(10):
-            pool.submit(lambda: self.test_single())
+            await pool.submit(lambda: self.test_single())
         await pool.gather()

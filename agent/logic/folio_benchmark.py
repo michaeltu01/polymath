@@ -96,7 +96,7 @@ class FOLIOBenchmark:
         folio_input_dataset = self.__filter_dataset(folio_input_dataset)
         traces: dict[int, ResultTrace] = {}
         for task in folio_input_dataset:
-            pool.submit(lambda task=task: self.run_task(traces, task))
+            await pool.submit(lambda task=task: self.run_task(traces, task))
         await pool.gather()
 
         result = FOLIOBenchmarkResult()
