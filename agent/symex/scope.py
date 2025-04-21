@@ -32,7 +32,7 @@ class ScopeManager:
     """
 
     def __init__(self) -> None:
-        self.__scopes: list[_Scope] = []
+        self.__scopes: list[_Scope] = [_Scope(0, "")]
         self.__next_scope_id: int = 0
         self.__current_scope_prefix: str = "__"
 
