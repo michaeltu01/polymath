@@ -135,7 +135,7 @@ class CBMCSearchEngineStrategy(EngineStrategy):
     def data_structure_prompt(self) -> str:
         return _SYSTEM_PROMPT.format(self.__output_format)
 
-    def generate_solver_constraints(
+    async def generate_solver_constraints(
         self, module: Module, metadata: Optional[MetadataWrapper]
     ) -> str:
         return LogicPyCHarnessGenerator.generate(module)

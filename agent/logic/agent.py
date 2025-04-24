@@ -210,7 +210,9 @@ Constraints:
                 return None, True
 
             solver_constraints: str = (
-                self.__engine_strategy.generate_solver_constraints(module, metadata)
+                await self.__engine_strategy.generate_solver_constraints(
+                    module, metadata
+                )
             )
             self.__result_trace.solver_constraints = solver_constraints
 

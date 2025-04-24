@@ -61,7 +61,7 @@ class EngineStrategy(ABC):
         ...
 
     @abstractmethod
-    def generate_solver_constraints(
+    async def generate_solver_constraints(
         self, module: Module, metadata: Optional[MetadataWrapper]
     ) -> str:
         """

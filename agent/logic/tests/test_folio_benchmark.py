@@ -41,6 +41,9 @@ class TestFOLIOBenchmark(IsolatedAsyncioTestCase):
     async def test_end_to_end_wrestling_true(self) -> None:
         await self.__test_end_to_end(289, "True", "claude-3-5-sonnet-20241022")
 
+    async def test_end_to_end_china_true(self) -> None:
+        await self.__test_end_to_end(657, "True", "claude-3-5-sonnet-20241022")
+
     async def __test_end_to_end(
         self, example_id: int, expected_solution: str, model: str
     ) -> None:

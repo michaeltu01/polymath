@@ -45,7 +45,6 @@ from libcst import (
 from libcst.metadata import TypeInferenceProvider
 
 
-# TODO: Test Subscript translation in Logic.py SMT constraint generator
 class PropagateUnique(CSTTransformer):
     """
     For unique attribute types that our preprocessing can handle, this

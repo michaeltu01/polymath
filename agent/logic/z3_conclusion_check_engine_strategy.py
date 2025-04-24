@@ -11,6 +11,9 @@ from typing import Callable, Optional, Tuple
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
 
 from agent.logic.logic_py_smt_harness_generator import LogicPySMTHarnessGenerator
+
+from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
+from agent.symex.propagate_unique import PropagateUnique
 from libcst import MetadataWrapper, Module
 
 
@@ -255,13 +258,17 @@ class Z3ConclusionCheckEngineStrategy(EngineStrategy):
             premise=self.__premise, conclusion=self.__conclusion
         )
 
-    def generate_solver_constraints(
+    async def generate_solver_constraints(
         self, module: Module, metadata: Optional[MetadataWrapper]
     ) -> str:
-        if not metadata:
+        if metadata is None:
             raise ValueError("SMT back-end needs type information enabled")
 
-        return LogicPySMTHarnessGenerator.generate(metadata)
+        preprocessed: Module = await PropagateUnique.preprocess(metadata)
+        wrapper: MetadataWrapper = await ModuleWithTypeInfoFactory.create_module(
+            preprocessed.code
+        )
+        return LogicPySMTHarnessGenerator.generate(wrapper)
 
     def generate_solver_invocation_command(self, solver_input_file: str) -> list[str]:
         return ["z3", solver_input_file]
