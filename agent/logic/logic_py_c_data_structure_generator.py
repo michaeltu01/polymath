@@ -7,6 +7,8 @@
 from abc import ABC
 from typing import Optional, Sequence
 
+from agent.symex.unique import UNIQUE
+
 from libcst import CSTVisitor
 
 from libcst._nodes.expression import (
@@ -208,7 +210,7 @@ class LogicPyCDataStructureGenerator(CSTVisitor):
         value: BaseExpression = node.value
         if isinstance(value, Name):
             name: str = value.value
-            if name == "Unique":
+            if name == UNIQUE:
                 self.__last_field_initialiser.is_unique = True
             elif name == "Domain":
                 allowed_values: list[str] = []

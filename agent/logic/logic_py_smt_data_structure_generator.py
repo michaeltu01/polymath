@@ -6,6 +6,8 @@
 
 from typing import Optional
 
+from agent.symex.unique import UNIQUE
+
 from libcst import (
     AnnAssign,
     BaseAssignTargetExpression,
@@ -155,6 +157,9 @@ class LogicPySMTDataStructureGenerator(CSTVisitor):
     def visit_ClassDef(self, node: ClassDef) -> Optional[bool]:
         name: str = node.name.value
         self.__current_class = name
+        if name == UNIQUE:
+            return False
+
         bases: set[str] = self.ancestors_per_class.setdefault(name, set())
         for base in node.bases:
             value: BaseExpression = base.value
@@ -166,6 +171,9 @@ class LogicPySMTDataStructureGenerator(CSTVisitor):
         self.smt_harness += f"; {self.__current_class}\n"
 
     def leave_ClassDef(self, original_node: ClassDef) -> None:
+        if self.__current_class == UNIQUE:
+            return
+
         self.smt_harness += "\n"
         self.__current_class = ""
         self.__is_in_class = False

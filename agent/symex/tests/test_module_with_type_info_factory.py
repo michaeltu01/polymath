@@ -7,6 +7,8 @@
 from typing import Mapping
 from unittest import IsolatedAsyncioTestCase
 
+from agent.logic.z3_conclusion_check_engine_strategy import _PYTHON_CODE_PREFIX
+
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 
 from concurrency.async_pool import AsyncPool
@@ -16,10 +18,8 @@ from libcst import CSTNode, MetadataWrapper
 from libcst.metadata.type_inference_provider import TypeInferenceProvider
 
 
-_CODE: str = """
-E = typing.TypeVar("E")
-def some(elements: list[E]) -> E:
-    return elements[0]
+_CODE: str = f"""
+{_PYTHON_CODE_PREFIX}
 
 class Person:
     name: str

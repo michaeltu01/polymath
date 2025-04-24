@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from collections import deque
+from re import compile, Match, match, Pattern
 from typing import Optional, Union
 
 from agent.codegen.indent import _INDENT, Indent
@@ -13,6 +14,8 @@ from agent.logic.logic_py_smt_data_structure_generator import _UNIVERSE_CLASS_NA
 from agent.symex.boolean import FALSE_NAME, TRUE, TRUE_NAME
 from agent.symex.collect_unique_ids import SOME
 from agent.symex.scope import ScopeManager
+
+from agent.symex.unique import UNIQUE
 
 from libcst import (
     And,
@@ -31,6 +34,7 @@ from libcst import (
     BaseUnaryOp,
     BooleanOperation,
     Call,
+    ClassDef,
     Comparison,
     ComparisonTarget,
     CSTVisitor,
@@ -65,6 +69,9 @@ from libcst import (
 
 from libcst.metadata.type_inference_provider import TypeInferenceProvider
 
+
+# Helper to extract element types due to incomplete Pyre type info.
+_ELEMENT_TYPE: Pattern = compile(r"^typing\.List\[(.*)\]$")
 
 # Name of the conclusion function in conclusion check.
 _CONCLUSION: str = "conclusion"
@@ -253,6 +260,9 @@ class LogicPySMTConstraintGenerator(CSTVisitor):
                         self.__append_function_application(func_name, [iterable.value])
                         return False
 
+    def visit_ClassDef(self, node: ClassDef) -> Optional[bool]:
+        return node.name.value != UNIQUE
+
     def visit_Comparison(self, node: Comparison) -> Optional[bool]:
         has_conjunction: bool = len(node.comparisons) > 1
         if has_conjunction:
@@ -367,6 +377,7 @@ class LogicPySMTConstraintGenerator(CSTVisitor):
         self.__append(f"{node.evaluated_value}", False)
 
     def visit_FunctionDef(self, node: FunctionDef) -> Optional[bool]:
+        super().visit_FunctionDef(node)
         for param in node.params.params:
             annotation: Optional[Annotation] = param.annotation
             if not annotation:
@@ -503,7 +514,7 @@ class LogicPySMTConstraintGenerator(CSTVisitor):
             subscript_element: BaseSlice = node.slice[0].slice
             if isinstance(subscript_element, Index):
                 index: BaseExpression = subscript_element.value
-                if isinstance(index, Name):
+                if isinstance(index, Name) or isinstance(index, Integer):
                     value: BaseExpression = node.value
                     if isinstance(value, Attribute):
                         self.__append_function_application(
@@ -553,16 +564,27 @@ class LogicPySMTConstraintGenerator(CSTVisitor):
             func_name (str): Name of the constant, attribute or list to access.
             args (list[BaseExpression]): Attribute value or list index.
         """
-        value_type: Optional[str] = self.get_metadata(
-            TypeInferenceProvider, args[0], None
+        this_arg: BaseExpression = args[0]
+        this_type: Optional[str] = self.get_metadata(
+            TypeInferenceProvider, this_arg, None
         )
-        if value_type:
-            value_type = value_type.rsplit(".", 1)[-1]
+        if this_type is None:
+            if isinstance(this_arg, Subscript):
+                container_type: Optional[str] = self.get_metadata(
+                    TypeInferenceProvider, this_arg.value, None
+                )
+                if container_type is not None:
+                    element_type: Optional[Match] = match(_ELEMENT_TYPE, container_type)
+                    if element_type is not None:
+                        this_type = element_type.group(1)
 
-        original_attribute_name: str = f"__attribute_{value_type}_{func_name}"
+        if this_type is not None:
+            this_type = this_type.rsplit(".", 1)[-1]
+
+        original_attribute_name: str = f"__attribute_{this_type}_{func_name}"
         attribute_name: str = original_attribute_name
         potential_bases: deque[str] = deque()
-        self.__add_ancestors(potential_bases, value_type)
+        self.__add_ancestors(potential_bases, this_type)
         while not attribute_name in self.__smt_attributes and potential_bases:
             ancestor: str = potential_bases.popleft()
             self.__add_ancestors(potential_bases, ancestor)

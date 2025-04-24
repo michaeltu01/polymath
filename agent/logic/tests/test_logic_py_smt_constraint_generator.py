@@ -10,6 +10,7 @@ from agent.logic.logic_py_smt_constraint_generator import LogicPySMTConstraintGe
 from agent.logic.logic_py_smt_data_structure_generator import (
     LogicPySMTDataStructureGenerator,
 )
+from agent.logic.z3_conclusion_check_engine_strategy import _PYTHON_CODE_PREFIX
 
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 from libcst import MetadataWrapper
@@ -1020,11 +1021,7 @@ def premise(universe: Universe) -> None:
         )
 
     async def __test_harness(self, code: str, expected_harness: str) -> None:
-        harness: str = f"""E = typing.TypeVar("E")
-def some(elements: list[E]) -> E:
-    return elements[0]
-
-{code}"""
+        harness: str = _PYTHON_CODE_PREFIX + code
         module: MetadataWrapper = await ModuleWithTypeInfoFactory.create_module(harness)
         data_structure = LogicPySMTDataStructureGenerator()
         module.visit(data_structure)

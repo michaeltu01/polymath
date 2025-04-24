@@ -7,13 +7,10 @@
 from unittest import IsolatedAsyncioTestCase
 
 from agent.logic.z3_conclusion_check_engine_strategy import _PYTHON_CODE_PREFIX
-from agent.symex.collect_unique_ids import CollectUniquelyIdentifiedVars
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 from agent.symex.propagate_unique import PropagateUnique
 
-from agent.symex.unique_aliasing import UniqueAliasing
-
-from libcst import MetadataWrapper
+from libcst import MetadataWrapper, Module
 
 
 class TestPropagateUnique(IsolatedAsyncioTestCase):
@@ -81,15 +78,5 @@ def premise(universe: Universe) -> None:
     async def __run_harness(self, before: str, after: str) -> None:
         code: str = _PYTHON_CODE_PREFIX + before
         wrapper: MetadataWrapper = await ModuleWithTypeInfoFactory.create_module(code)
-        aliasing = UniqueAliasing()
-        wrapper.visit(aliasing)
-        collect_ids = CollectUniquelyIdentifiedVars()
-        wrapper.visit(collect_ids)
-
-        propagate = PropagateUnique(
-            aliasing.aliases,
-            collect_ids.replacements,
-            collect_ids.unique_property_to_object_id,
-        )
-        transformed: str = wrapper.visit(propagate).code
-        self.assertEqual(_PYTHON_CODE_PREFIX + after, transformed)
+        module: Module = await PropagateUnique.preprocess(wrapper)
+        self.assertEqual(_PYTHON_CODE_PREFIX + after, module.code)

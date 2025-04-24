@@ -7,6 +7,7 @@
 from unittest import IsolatedAsyncioTestCase
 
 from agent.logic.logic_py_smt_harness_generator import LogicPySMTHarnessGenerator
+from agent.logic.z3_conclusion_check_engine_strategy import _PYTHON_CODE_PREFIX
 
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 
@@ -943,11 +944,6 @@ def conclusion(universe: Universe) -> None:
     async def test_wrestling(self) -> None:
         await self.__test_harness(
             """
-E = typing.TypeVar("E")
-def some(elements: list[E]) -> E:
-    return elements[0]
-
-
 class Person:
     name: Unique[str]
     description: str
@@ -1313,12 +1309,142 @@ def conclusion(universe: Universe) -> None:
 """,
         )
 
-    async def __test_harness(self, code: str, expected_harness: str) -> None:
-        harness: str = f"""E = typing.TypeVar("E")
-def some(elements: list[E]) -> E:
-    return elements[0]
+    async def test_subscript(self) -> None:
+        await self.__test_harness(
+            """
+class Person:
+    name: Unique[str]
+    age: int
 
-{code}"""
+class Universe:
+    persons: list[Person]
+
+def premise(universe: Universe) -> None:
+    assert universe.persons[0] == universe.persons[0]
+    assert universe.persons[0].age == 35
+    assert universe.persons[0] == universe.persons[0]
+
+    for person in universe.persons:
+        if person.age > 30:
+            assert person == universe.persons[0]
+        if person == universe.persons[0]:
+            assert person.age > 30
+        if universe.persons[0] == person:
+            assert person.age > 31
+        if person == universe.persons[0]:
+            assert person.age > 32
+""",
+            """; Person
+(declare-fun __attribute_Person_name (Int) String)
+(declare-fun __attribute_Person_age (Int) Int)
+
+; Universe
+(declare-fun __attribute_Universe_persons_backing (Int) Int)
+(declare-fun __attribute_Universe_persons_size () Int)
+(define-fun __attribute_Universe_persons ((index Int)) Int (__attribute_Universe_persons_backing (ite (and (>= index 0) (< index __attribute_Universe_persons_size)) index 0)))
+(declare-fun __attribute_Universe_persons_by_name (String) Int)
+(assert
+  (forall
+    ((person_index Int))
+    (let
+      ((person (__attribute_Universe_persons person_index)))
+      (=
+        person
+        (__attribute_Universe_persons_by_name (__attribute_Person_name person))
+      )
+    )
+  )
+)
+
+
+(assert
+  (and
+    (=
+      (__attribute_Universe_persons 0)
+      (__attribute_Universe_persons 0)
+    )
+    (=
+      (__attribute_Person_age (__attribute_Universe_persons 0))
+      35
+    )
+    (=
+      (__attribute_Universe_persons 0)
+      (__attribute_Universe_persons 0)
+    )
+    (forall
+      ((__0__0__person_index Int))
+      (let
+        ((__0__0__person (__attribute_Universe_persons __0__0__person_index)))
+        (and
+          (and
+            (=>
+              (>
+                (__attribute_Person_age __0__0__person)
+                30
+              )
+              (=
+                __0__0__person
+                (__attribute_Universe_persons 0)
+              )
+            )
+          )
+          (and
+            (=>
+              (=
+                __0__0__person
+                (__attribute_Universe_persons 0)
+              )
+              (>
+                (__attribute_Person_age __0__0__person)
+                30
+              )
+            )
+          )
+          (and
+            (=>
+              (=
+                (__attribute_Universe_persons 0)
+                __0__0__person
+              )
+              (>
+                (__attribute_Person_age __0__0__person)
+                31
+              )
+            )
+          )
+          (and
+            (=>
+              (=
+                __0__0__person
+                (__attribute_Universe_persons 0)
+              )
+              (>
+                (__attribute_Person_age __0__0__person)
+                32
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+(check-sat)
+
+(push)
+
+(check-sat)
+(pop)
+
+(assert
+)
+(check-sat)
+""",
+        )
+
+    async def __test_harness(self, code: str, expected_harness: str) -> None:
+        harness: str = _PYTHON_CODE_PREFIX + code
         module: MetadataWrapper = await ModuleWithTypeInfoFactory.create_module(harness)
         harness: str = LogicPySMTHarnessGenerator.generate(module)
         self.assertEqual(expected_harness, harness)

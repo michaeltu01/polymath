@@ -12,6 +12,7 @@ from agent.symex.collect_unique_ids import (
     SupportedUniqueIdTypes,
     UniquePropertyToObjectId,
 )
+from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 from agent.symex.scope import ScopeManager
 
 from agent.symex.unique_aliasing import UniqueAliasing
@@ -32,6 +33,8 @@ from libcst import (
     IndentedBlock,
     Is,
     IsNot,
+    MetadataWrapper,
+    Module,
     Name,
     NotIn,
     RemovalSentinel,
@@ -57,6 +60,20 @@ class PropagateUnique(CSTTransformer):
     """
 
     METADATA_DEPENDENCIES = (TypeInferenceProvider,)
+
+    @staticmethod
+    async def preprocess(module: MetadataWrapper) -> Module:
+        aliasing = UniqueAliasing()
+        module.visit(aliasing)
+        collect_ids = CollectUniquelyIdentifiedVars()
+        module.visit(collect_ids)
+
+        propagate = PropagateUnique(
+            aliasing.aliases,
+            collect_ids.replacements,
+            collect_ids.unique_property_to_object_id,
+        )
+        return module.visit(propagate)
 
     def __init__(
         self,
