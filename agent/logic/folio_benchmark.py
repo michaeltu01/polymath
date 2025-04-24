@@ -6,7 +6,7 @@
 
 import asyncio
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from io import StringIO
 from json import dumps, loads
 from typing import Any, Callable, Optional
@@ -164,6 +164,9 @@ class FOLIOBenchmark:
 async def main():
     load_dotenv()
     module_path: str = os.path.dirname(__file__)
+    input_dataset_path: str = os.path.join(
+        module_path, "../../datasets/folio_v2_validation.jsonl"
+    )
     models: list[str] = [
         # "llama3.1-70b-instruct",
         # "gpt-4o-evals2",
@@ -171,16 +174,16 @@ async def main():
     ]
     for model in models:
         benchmark = FOLIOBenchmark(
-            os.path.join(module_path, "folio_v2_validation.jsonl"),
+            input_dataset_path,
             model,
-            True,
-            # lambda dataset: [task for task in dataset if task["example_id"] == 736],
         )
         result: FOLIOBenchmarkResult = await benchmark.generate()
         benchmark.evaluate(result)
+        json_result: dict[str, Any] = asdict(result)
+        output_text: str = dumps(json_result, indent=4)
 
         async with aiofiles.open(f"folio-results-{model}.json", "w") as file:
-            await file.write(dumps(result, indent=4, default=vars))
+            await file.write(output_text)
 
 
 if __name__ == "__main__":

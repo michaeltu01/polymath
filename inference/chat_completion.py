@@ -6,14 +6,14 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import auto, Enum
+from enum import auto, StrEnum
 from types import TracebackType
-from typing import Literal, Optional, Tuple
+from typing import Optional, Tuple
 
 from inference.finish_reason import FinishReason
 
 
-class Role(Enum):
+class Role(StrEnum):
     """
     Possible author roles of messages in a chat completions dialog.
     """
