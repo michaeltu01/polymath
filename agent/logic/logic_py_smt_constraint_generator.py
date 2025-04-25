@@ -58,6 +58,7 @@ from libcst import (
     Name,
     Not,
     NotEqual,
+    NotIn,
     Or,
     Pass,
     SimpleStatementLine,
@@ -286,7 +287,11 @@ class LogicPySMTConstraintGenerator(CSTVisitor):
                     Not(), Comparison(left, [ComparisonTarget(Equal(), right)])
                 )
                 not_equal.visit(self)
-            elif isinstance(operator, In):
+            elif isinstance(operator, In) or isinstance(operator, NotIn):
+                should_negate: bool = isinstance(operator, NotIn)
+                if should_negate:
+                    self.__not_prefix()
+
                 tmp_var = Name(f"__logicpy_in_tmp_{self.__in_tmp_counter}")
                 self.__in_tmp_counter += 1
                 target = AssignTarget(tmp_var)
@@ -301,6 +306,9 @@ class LogicPySMTConstraintGenerator(CSTVisitor):
                     ]
                 )
                 block.visit(self)
+
+                if should_negate:
+                    self.__not_suffix()
             else:
                 smt_operator: str = f"missing_operator: {type(operator).__name__}"
                 if isinstance(operator, LessThan):
@@ -525,16 +533,33 @@ class LogicPySMTConstraintGenerator(CSTVisitor):
     def visit_UnaryOperation(self, node: UnaryOperation) -> Optional[bool]:
         operator: BaseUnaryOp = node.operator
         if isinstance(operator, Not):
-            self.__append_line("(not", False)
-            self.__indent.indent()
-            self.__append("", True)
+            self.__not_prefix()
             node.expression.visit(self)
-            self.__append_newline()
-            self.__indent.dedent()
-            self.__append(")")
+            self.__not_suffix()
         else:
             raise ValueError(f"Unsupported unary operator: {operator}")
         return False
+
+    def __not_prefix(self) -> None:
+        """
+        Prefix to negate the statement contained. Usually, if we want to negate
+        an expression, we just wrap it in a unary expression with the not
+        operator and visit that. This helper is extracted for situations where
+        the SMT grammar does not align with the Python grammar, e.g. when we
+        want to negate an SMT expression that would be a block or a statement
+        in Python.
+        """
+        self.__append_line("(not", False)
+        self.__indent.indent()
+        self.__append("", True)
+
+    def __not_suffix(self) -> None:
+        """
+        Terminates an SMT negation expression started with `__not_prefix()`.
+        """
+        self.__append_newline()
+        self.__indent.dedent()
+        self.__append(")")
 
     def __increment_exists_stack_counter(self, delta: int = 1) -> None:
         """

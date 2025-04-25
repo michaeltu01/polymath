@@ -658,6 +658,76 @@ def premise(universe: Universe) -> None:
 """,
         )
 
+    async def test_not_in_operator(self) -> None:
+        await self.__test_harness(
+            """
+class Person:
+    name: str
+    age: int
+    score: float
+
+class Team:
+    members: list[Person]
+
+class Universe:
+    people: list[Person]
+    teams: list[Team]
+
+def premise(universe: Universe) -> None:
+    peter: Person = some(universe.people)
+    fair: Team = some(universe.teams)
+    assert peter not in fair.members
+""",
+            """(assert
+  (and
+    (exists
+      ((__0__peter_index Int))
+      (let
+        ((__0__peter (__attribute_Universe_people __0__peter_index)))
+        (and
+          (exists
+            ((__0__fair_index Int))
+            (let
+              ((__0__fair (__attribute_Universe_teams __0__fair_index)))
+              (and
+                (not
+                  (and
+                    (exists
+                      ((__0__0____logicpy_in_tmp_0_index Int))
+                      (let
+                        ((__0__0____logicpy_in_tmp_0 (__attribute_Team_members __0__fair __0__0____logicpy_in_tmp_0_index)))
+                        (and
+                          (=
+                            __0__0____logicpy_in_tmp_0
+                            __0__peter
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+)
+
+(check-sat)
+
+(push)
+
+(check-sat)
+(pop)
+
+(assert
+)
+(check-sat)
+""",
+        )
+
     async def test_global(self) -> None:
         await self.__test_harness(
             """
