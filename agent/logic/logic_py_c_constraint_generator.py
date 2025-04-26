@@ -83,14 +83,20 @@ class LogicPyCConstraintGenerator(m.MatcherDecoratableVisitor):
 
     def visit_Call(self, node: Call) -> Optional[bool]:
         if self.is_inside_validate:
-            value, name = LogicPyCConstraintGenerator.get_member_call(node.func)
+            func: BaseExpression = node.func
+            value, name = LogicPyCConstraintGenerator.get_member_call(func)
             is_first_arg: bool
             if value is not None and name is not None and name.value == "index":
                 self.c_constraints += "__CPROVER_index("
                 value.visit(self)
                 is_first_arg = False
+            elif (
+                isinstance(func, Name)
+                and func.value == "__polymath_constraint_separator"
+            ):
+                return False
             else:
-                node.func.visit(self)
+                func.visit(self)
                 self.c_constraints += "("
                 is_first_arg = True
 
@@ -183,12 +189,12 @@ class LogicPyCConstraintGenerator(m.MatcherDecoratableVisitor):
             )
             if duplicate_count is not None and duplicate_count > 0:
                 value += f"_{duplicate_count}"
-            elif value == "nondet":
-                value = "__CPROVER_nondet_element"
-            elif value == "assume":
-                value = "__CPROVER_assume"
             elif value == "abs":
                 value = "__CPROVER_abs"
+            elif value == "assume":
+                value = "__CPROVER_assume"
+            elif value == "nondet":
+                value = "__CPROVER_nondet_element"
             elif value == "False":
                 value = "false"
             elif value == "True":
