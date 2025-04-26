@@ -22,7 +22,20 @@ _LOGIC_RL_TRAINING_DIALOG_SYSTEM_PROMPT_TEMPLATE: str = """You are an expert log
 {}
 ```
 
-Please give only the JSON response, and do not add any additional comments, so that I can easily parse it. Here is the user's question:
+Please split your answer into a `# Thinking` section, where you can put your reasoning, comments, or any explanation of the solution you would like to add, and a `# Solution` section, containing only the raw JSON without highlighting or other markers. For example:
+```
+# Thinking
+Put any thoughts, comments or descriptions here...
+
+# Solution
+{{
+  "entities": [
+    ...
+  ]
+}}
+```
+
+Here is the user's question:
 """
 
 
