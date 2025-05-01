@@ -127,8 +127,6 @@ class ZebraBenchmark:
             for task in rows:
                 if self.__filter_dataset(task):
                     await pool.submit(lambda task=task: self.run_task(eval_json, task))
-                    break
-            break
         await pool.gather()
 
         if not self.__output_dataset_context:
@@ -363,6 +361,11 @@ async def main():
             path.join(base_path, "Claude-3.5-Sonnet-20241022@reasoning.json"),
             "anthropic/Claude-3.5-Sonnet-20241022@reasoning",
             "claude-3-5-sonnet-20241022",
+        ),
+        (
+            path.join(base_path, "gpt-o3-mini@reasoning.json"),
+            "openai/GPT-o3-mini@reasoning",
+            "gpt-o3-mini",
         ),
     ]
     for model in models:
