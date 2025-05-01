@@ -6,6 +6,7 @@
 
 import asyncio
 from logging import Logger
+from random import randrange
 from typing import Callable, Optional
 
 from inference.chat_completion import ChatCompletion, Message, Role
@@ -53,7 +54,8 @@ class InferenceClient:
                     self.__logger.error("Chat completion API errors occurred.")
                     return None
 
-                await asyncio.sleep(30)
+                wait_time: int = randrange(30, 46)
+                await asyncio.sleep(wait_time)
                 continue
 
             ai_response = ai_response or ""
