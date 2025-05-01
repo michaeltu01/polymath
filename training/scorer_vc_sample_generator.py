@@ -81,8 +81,11 @@ class ScorerVcSampleGenerator:
         puzzle: str
         data_structure: str
         constraints: str
+        data_structure_solution: dict[str, Any]
         try:
-            puzzle, data_structure, constraints = self.__parser.parse(line)
+            puzzle, data_structure, constraints, data_structure_solution = (
+                self.__parser.parse(line)
+            )
         except Exception:
             async with self.__logging_lock:
                 self.__logger.exception(f"Invalid puzzle: {line}")
@@ -99,7 +102,10 @@ class ScorerVcSampleGenerator:
         if scorer_vc is None:
             raise ValueError(f"Failed to convert sample: {line}")
         dialog: list[Message] = LogicRlTrainingDialog.create(puzzle, data_structure)
-        metadata: dict[str, Any] = {"scorer_vc": scorer_vc}
+        metadata: dict[str, Any] = {
+            "scorer_vc": scorer_vc,
+            "solution": data_structure_solution,
+        }
         sample: Any = self.__sample_output_converter.convert(dialog, metadata)
         output_line: str = f"{dumps(sample)}\n"
 
@@ -110,10 +116,10 @@ class ScorerVcSampleGenerator:
 async def main() -> None:
     load_dotenv()
     module_path: str = path.dirname(__file__)
-    base_path: str = path.join(module_path, "../../datasets")
+    base_path: str = path.join(module_path, "../datasets")
     # Set input and output file names
-    input_file: str = path.join(base_path, "zebra-in.jsonl")
-    output_file: str = path.join(base_path, "zebra-out.jsonl")
+    input_file: str = path.join(base_path, "zebra_puzzles_tudor_train.jsonl")
+    output_file: str = path.join(base_path, "zebra_puzzles_tudor_train_vc.jsonl")
     generator = ScorerVcSampleGenerator()
     await generator.process(input_file, output_file)
 
