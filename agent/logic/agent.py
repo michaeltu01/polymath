@@ -113,6 +113,7 @@ Constraints:
             if attempt >= RETRY_COUNT:
                 break
             self.__logger.warning("Retrying solution finding due to recoverable error.")
+            self.__result_trace.num_agent_retries += 1
 
     async def __solve(self) -> bool:
         """
@@ -207,6 +208,7 @@ Constraints:
                     metadata = None
             except ParserSyntaxError:
                 self.__logger.exception("Parser error when reading constraint")
+                self.__result_trace.num_logic_py_syntax_errors += 1
                 return None, True
 
             solver_constraints: str = (
@@ -246,6 +248,7 @@ Constraints:
 {self.__result_trace.solver_constraints}
 """
                     )
+                    self.__result_trace.num_solver_timeouts += 1
                     return None, True
 
             self.__result_trace.solver_output = f"{stdout}{stderr}"
@@ -258,6 +261,7 @@ Constraints:
                 case SolverOutcome.SUCCESS:
                     return output, False
                 case SolverOutcome.FATAL:
+                    self.__result_trace.num_solver_errors += 1
                     return None, True
                 case SolverOutcome.RETRY:
                     attempts += 1
@@ -267,6 +271,7 @@ Constraints:
                         )
                         return None, False
 
+                    self.__result_trace.num_solver_retries += 1
                     self.__client.add_message(
                         self.__engine_strategy.retry_prompt, Role.USER
                     )

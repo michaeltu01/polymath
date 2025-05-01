@@ -42,5 +42,22 @@ class ResultTrace:
     # Solution provided by solver.
     solution: Optional[str] = None
 
+    # Number of times we retried the Logic agent pipeline (e.g. due to syntax
+    # errors)
+    num_agent_retries: int = 0
+
+    # Number of times Logic.py syntax errors were encountered.
+    num_logic_py_syntax_errors: int = 0
+
+    # Number of times we encountered a fatal solver error
+    num_solver_errors: int = 0
+
+    # Number of times we retried solving with amended constraints (e.g. UNSAT in
+    # CBMC and asking model to fix constraints.)
+    num_solver_retries: int = 0
+
+    # Number of itmes a solver timeout was encountered
+    num_solver_timeouts: int = 0
+
     def __repr__(self):
-        return f"ResultTrace(messages={repr(self.messages)}, python_code={repr(self.python_code)}), solver_constraints={repr(self.solver_constraints)}), solver_output={repr(self.solver_output)}), solver_exit_code={repr(self.solver_exit_code)}), solution={repr(self.solution)})"
+        return f"ResultTrace(messages={repr(self.messages)}, python_code={repr(self.python_code)}), solver_constraints={repr(self.solver_constraints)}), solver_output={repr(self.solver_output)}), solver_exit_code={repr(self.solver_exit_code)}), solution={repr(self.solution)}, num_agent_retries={repr(self.num_agent_retries)}, num_logic_py_syntax_errors={repr(self.num_logic_py_syntax_errors)}, num_solver_errors={repr(self.num_solver_errors)}, num_solver_retries={repr(self.num_solver_retries)}, num_solver_timeouts={repr(self.num_solver_timeouts)})"

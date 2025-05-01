@@ -118,7 +118,7 @@ class ZebraBenchmark:
         """
         Runs all Zebra puzzles specified in the input dataset JSON file.
         """
-        pool = AsyncPool(100)
+        pool = AsyncPool(10)
         eval_json: list[dict[str, Any]] = []
         dataset = ParquetFile(self.__zebra_input_dataset_path)
         for row_group_index in range(dataset.num_row_groups):
@@ -127,6 +127,8 @@ class ZebraBenchmark:
             for task in rows:
                 if self.__filter_dataset(task):
                     await pool.submit(lambda task=task: self.run_task(eval_json, task))
+                    break
+            break
         await pool.gather()
 
         if not self.__output_dataset_context:
@@ -180,6 +182,13 @@ class ZebraBenchmark:
                     "size": task["size"],
                     "puzzle": puzzle,
                     "created_at": task["created_at"],
+                    "polymath_metadata": {
+                        "num_agent_retries": result_trace.num_agent_retries,
+                        "num_logic_py_syntax_errors": result_trace.num_logic_py_syntax_errors,
+                        "num_solver_errors": result_trace.num_solver_errors,
+                        "num_solver_retries": result_trace.num_solver_errors,
+                        "num_solver_timeouts": result_trace.num_solver_timeouts,
+                    },
                 }
             )
 
@@ -349,6 +358,11 @@ async def main():
             path.join(base_path, "Meta-Llama-3.1-70B-Instruct@reasoning.json"),
             "meta-llama/Meta-Llama-3.1-70B-Instruct@reasoning",
             "llama3.1-70b-instruct",
+        ),
+        (
+            path.join(base_path, "Claude-3.5-Sonnet-20241022@reasoning.json"),
+            "anthropic/Claude-3.5-Sonnet-20241022@reasoning",
+            "claude-3-5-sonnet-20241022",
         ),
     ]
     for model in models:
