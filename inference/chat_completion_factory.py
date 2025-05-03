@@ -12,6 +12,7 @@ from plugin.plugin_loader import PluginLoader
 
 # Default max token configuration to use for LLM inference.
 DEFAULT_MAX_TOKENS: int = 131072
+# DEFAULT_MAX_TOKENS: int = 4096
 
 # Default temperature to use for LLM inference.
 DEFAULT_TEMPERATURE: float = 0.5

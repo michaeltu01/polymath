@@ -11,6 +11,7 @@ from tempfile import gettempdir
 from typing import Callable, Optional, Tuple
 
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
+from agent.logic.solver import Solver
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
 from aiofiles.tempfile import NamedTemporaryFile
 from concurrency.subprocess import Subprocess
@@ -43,7 +44,7 @@ RETRY_COUNT: int = 5
 _SOLVER_TIMEOUT: float = 15
 
 
-class LogicAgent:
+class LogicAgent(Solver):
     """
     Basic agent prompting LLM to:
     1) Define a data structure to hold the answer of a request/puzzle.

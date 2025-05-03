@@ -18,6 +18,7 @@ import aiofiles
 from agent.logic.agent import LogicAgent
 from agent.logic.cbmc_search_engine_strategy import CBMCSearchEngineStrategy
 from agent.logic.engine_strategy import EngineStrategy
+from agent.logic.model_only import ModelOnlySolver
 from aiofiles.base import AiofilesContextManager
 from aiofiles.threadpool.text import AsyncTextIOWrapper
 from concurrency.async_pool import AsyncPool
@@ -54,6 +55,7 @@ class ZebraBenchmark:
         enable_stderr_log: bool = True,
         generate_training_data: bool = False,
         zebra_input_dataset_path: Optional[str] = None,
+        model_only: bool = False,
         filter_dataset: Callable[[dict[str, Any]], bool] = lambda task: True,
     ) -> None:
         """
@@ -70,6 +72,8 @@ class ZebraBenchmark:
             zebra_input_dataset_path (Optional[str]): Zebra logic dataset used
             as a benchmark or to generate training data. If not set, the
             default ZebraLogicBench dataset is used.
+            model_only (bool): Indicates to not use the Logic agent, but instead
+            perform a model-only baseline comparison run.
             filter_dataset (Callable[[Any], Any]): Filter to select which tasks
             from the benchmark set to run.
         """
@@ -77,6 +81,7 @@ class ZebraBenchmark:
         self.__output_dataset_lock = Lock()
         self.__generator: str = generator
         self.__model_name: str = model_name
+        self.__model_only: bool = model_only
         self.__enable_stderr_log: bool = enable_stderr_log
         self.__filter_dataset: Callable[[dict[str, Any]], bool] = filter_dataset
         self.__output_dataset_context: Optional[AiofilesContextManager] = (
@@ -118,7 +123,7 @@ class ZebraBenchmark:
         """
         Runs all Zebra puzzles specified in the input dataset JSON file.
         """
-        pool = AsyncPool(10)
+        pool = AsyncPool(100)
         eval_json: list[dict[str, Any]] = []
         dataset = ParquetFile(self.__zebra_input_dataset_path)
         for row_group_index in range(dataset.num_row_groups):
@@ -155,10 +160,20 @@ class ZebraBenchmark:
             async with create_chat_completion(
                 logger_factory, self.__model_name
             ) as chat_completion:
-                agent = LogicAgent(
-                    logger_factory, chat_completion, engine_strategy, result_trace
+                solver = (
+                    ModelOnlySolver(
+                        logger_factory,
+                        chat_completion,
+                        result_trace,
+                        puzzle,
+                        output_format,
+                    )
+                    if self.__model_only
+                    else LogicAgent(
+                        logger_factory, chat_completion, engine_strategy, result_trace
+                    )
                 )
-                await agent.solve()
+                await solver.solve()
 
             if self.__output_dataset_context:
                 await self.write_sample(
@@ -353,6 +368,11 @@ async def main():
     )
     models: list[Tuple[str, str, str]] = [
         (
+            path.join(base_path, "Meta-Llama-4-Polymath@model-only.json"),
+            "meta-llama/Meta-Llama-4-Polymath@model-only",
+            "llama3.1-70b-polymath",
+        ),
+        (
             path.join(base_path, "Meta-Llama-3.1-70B-Instruct@reasoning.json"),
             "meta-llama/Meta-Llama-3.1-70B-Instruct@reasoning",
             "llama3.1-70b-instruct",
@@ -366,6 +386,11 @@ async def main():
             path.join(base_path, "gpt-o3-mini@reasoning.json"),
             "openai/GPT-o3-mini@reasoning",
             "gpt-o3-mini",
+        ),
+        (
+            path.join(base_path, "gpt-4o@reasoning.json"),
+            "openai/GPT-4o@reasoning",
+            "gpt-4o-evals2",
         ),
     ]
     for model in models:

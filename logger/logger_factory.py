@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from io import StringIO
-from logging import getLogger, Logger, PlaceHolder, root, StreamHandler
+from logging import getLogger, INFO, Logger, PlaceHolder, root, StreamHandler
 from types import TracebackType
 from typing import Optional
 
@@ -39,7 +39,8 @@ class LoggerFactory:
 
     def __call__(self, name: str) -> Logger:
         qualified_name: str = f"{name}-{self.__id}"
-        logger = getLogger(qualified_name)
+        logger: Logger = getLogger(qualified_name)
+        logger.setLevel(INFO)
         self.__created_loggers.add(qualified_name)
         if not logger.hasHandlers():
             if self.__enable_stderr_log:
