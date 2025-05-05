@@ -8,7 +8,7 @@ from logging import Logger
 from types import TracebackType
 from typing import Callable, Optional, Tuple
 
-from inference.chat_completion import ChatCompletion
+from inference.chat_completion import ChatCompletion, Message
 from inference.finish_reason import FinishReason
 
 
@@ -24,11 +24,13 @@ class DummyChatCompletion(ChatCompletion):
         self,
         logger_factory: Callable[[str], Logger],
         model_name: str,
+        max_gen_tokens: int,
         max_tokens: int,
         temperature: float,
     ) -> None:
         self.__logger: Logger = logger_factory(__name__)
         self.__model_name = model_name
+        self.__max_gen_tokens = max_gen_tokens
         self.__max_tokens = max_tokens
         self.__temperature = temperature
 
@@ -44,6 +46,6 @@ class DummyChatCompletion(ChatCompletion):
         pass
 
     async def create(
-        self, conversation: list[dict[str, str]]
+        self, conversation: list[Message]
     ) -> Tuple[FinishReason, Optional[str]]:
         return FinishReason.STOPPED, "Hello! I am very intelligent!"

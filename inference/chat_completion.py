@@ -64,8 +64,10 @@ class ChatCompletion(ABC):
         """
         Sends the given conversation to chat completions inference back-end.
         Each conversation message should contain a "role" and "text" property.
-        TODO: Refactor this to a Message class.
 
+        Args:
+            conversation (list[Message]): Messages to send to model for
+            completion.
         Returns: Tuple of finish reason and LLM response text.
         """
         ...

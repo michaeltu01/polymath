@@ -370,7 +370,17 @@ async def main():
         (
             path.join(base_path, "Meta-Llama-4-Polymath@model-only.json"),
             "meta-llama/Meta-Llama-4-Polymath@model-only",
-            "llama3.1-70b-polymath",
+            "llama4-polymath",
+        ),
+        (
+            path.join(base_path, "Meta-Llama-4-Polymath-Syntactic@model-only.json"),
+            "meta-llama/Meta-Llama-4-Polymath-Syntactic@model-only",
+            "llama4-polymath-syntactic",
+        ),
+        (
+            path.join(base_path, "Meta-Llama-4-Base@model-only.json"),
+            "meta-llama/Meta-Llama-4-Base@model-only",
+            "llama4-base",
         ),
         (
             path.join(base_path, "Meta-Llama-3.1-70B-Instruct@reasoning.json"),
