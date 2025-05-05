@@ -12,7 +12,9 @@ from plugin.plugin_loader import PluginLoader
 
 # Default max token configuration to use for LLM inference.
 DEFAULT_MAX_TOKENS: int = 131072
-# DEFAULT_MAX_TOKENS: int = 4096
+
+# Default max output tokens to use for LLM inference.
+DEFAULT_MAX_GEN_TOKENS: int = DEFAULT_MAX_TOKENS
 
 # Default temperature to use for LLM inference.
 DEFAULT_TEMPERATURE: float = 0.5
@@ -41,9 +43,17 @@ def create_chat_completion(
     plugin: PluginLoader[ChatCompletion] = PluginLoader("chat_completion")
     if plugin.is_configured:
         return plugin.factory(
-            logger_factory, model_name, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE
+            logger_factory,
+            model_name,
+            DEFAULT_MAX_GEN_TOKENS,
+            DEFAULT_MAX_TOKENS,
+            DEFAULT_TEMPERATURE,
         )
 
     return DummyChatCompletion(
-        logger_factory, model_name, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE
+        logger_factory,
+        model_name,
+        DEFAULT_MAX_GEN_TOKENS,
+        DEFAULT_MAX_TOKENS,
+        DEFAULT_TEMPERATURE,
     )
