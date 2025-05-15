@@ -10,11 +10,13 @@ from logger.logger_factory import LoggerFactory
 from plugin.plugin_loader import PluginLoader
 
 
-# Default max token configuration to use for LLM inference.
-DEFAULT_MAX_TOKENS: int = 131072
+# Do not set max tokens explicitly. Used for most models.
+DEFAULT_MAX_TOKENS: int = 0
+# Set max tokens to 131072. Used for Llama 3.1 70B.
+# DEFAULT_MAX_TOKENS: int = 131072
 
 # Default max output tokens to use for LLM inference.
-DEFAULT_MAX_GEN_TOKENS: int = DEFAULT_MAX_TOKENS
+DEFAULT_MAX_GEN_TOKENS: int = 0
 
 # Default temperature to use for LLM inference.
 DEFAULT_TEMPERATURE: float = 0.5

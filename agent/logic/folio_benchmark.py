@@ -92,7 +92,7 @@ class FOLIOBenchmark:
             async for line in file:
                 folio_input_dataset.append(loads(line))
 
-        pool = AsyncPool(100)
+        pool = AsyncPool(10)
         folio_input_dataset = self.__filter_dataset(folio_input_dataset)
         traces: dict[int, ResultTrace] = {}
         for task in folio_input_dataset:
@@ -168,9 +168,11 @@ async def main():
         module_path, "../../datasets/folio_v2_validation.jsonl"
     )
     models: list[str] = [
-        # "llama3.1-70b-instruct",
+        "llama3.1-70b-instruct",
         # "gpt-4o-evals2",
-        "claude-3-5-sonnet-20241022",
+        # "claude-3-5-sonnet-20241022",
+        # "claude-3-5-sonnet-20241022-genai",
+        # "claude-3-7-sonnet-20250219-us-genai",
     ]
     for model in models:
         benchmark = FOLIOBenchmark(

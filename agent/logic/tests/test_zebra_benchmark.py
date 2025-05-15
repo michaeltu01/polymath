@@ -160,7 +160,6 @@ class TestZebraBenchmark(IsolatedAsyncioTestCase):
 }"""
             ),
         )
-        pass
 
     async def test_end_to_end(self) -> None:
         with NamedTemporaryFile() as eval_json_file:

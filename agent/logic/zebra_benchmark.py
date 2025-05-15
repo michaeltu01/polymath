@@ -123,7 +123,7 @@ class ZebraBenchmark:
         """
         Runs all Zebra puzzles specified in the input dataset JSON file.
         """
-        pool = AsyncPool(100)
+        pool = AsyncPool(10)
         eval_json: list[dict[str, Any]] = []
         dataset = ParquetFile(self.__zebra_input_dataset_path)
         for row_group_index in range(dataset.num_row_groups):
@@ -201,6 +201,7 @@ class ZebraBenchmark:
                         "num_solver_errors": result_trace.num_solver_errors,
                         "num_solver_retries": result_trace.num_solver_errors,
                         "num_solver_timeouts": result_trace.num_solver_timeouts,
+                        "constraints": result_trace.solver_constraints,
                     },
                 }
             )
@@ -367,39 +368,39 @@ async def main():
         path.join(module_path, "../../lib/ZeroEval/result_dirs/zebra-grid/")
     )
     models: list[Tuple[str, str, str]] = [
+        # (
+        #     path.join(base_path, "Meta-Llama-4-Polymath@model-only.json"),
+        #     "meta-llama/Meta-Llama-4-Polymath@model-only",
+        #     "llama4-polymath",
+        # ),
+        # (
+        #     path.join(base_path, "Meta-Llama-4-Polymath-Syntactic@model-only.json"),
+        #     "meta-llama/Meta-Llama-4-Polymath-Syntactic@model-only",
+        #     "llama4-polymath-syntactic",
+        # ),
+        # (
+        #     path.join(base_path, "Meta-Llama-4-Base@model-only.json"),
+        #     "meta-llama/Meta-Llama-4-Base@model-only",
+        #     "llama4-base",
+        # ),
+        # (
+        #     path.join(base_path, "Meta-Llama-3.1-70B-Instruct@reasoning.json"),
+        #     "meta-llama/Meta-Llama-3.1-70B-Instruct@reasoning",
+        #     "llama3.1-70b-instruct",
+        # ),
+        # (
+        #     path.join(base_path, "Claude-3.5-Sonnet-20241022@reasoning.json"),
+        #     "anthropic/Claude-3.5-Sonnet-20241022@reasoning",
+        #     "claude-3-5-sonnet-20241022",
+        # ),
+        # (
+        #     path.join(base_path, "gpt-o3-mini@reasoning.json"),
+        #     "openai/GPT-o3-mini@reasoning",
+        #     "gpt-o3-mini",
+        # ),
         (
-            path.join(base_path, "Meta-Llama-4-Polymath@model-only.json"),
-            "meta-llama/Meta-Llama-4-Polymath@model-only",
-            "llama4-polymath",
-        ),
-        (
-            path.join(base_path, "Meta-Llama-4-Polymath-Syntactic@model-only.json"),
-            "meta-llama/Meta-Llama-4-Polymath-Syntactic@model-only",
-            "llama4-polymath-syntactic",
-        ),
-        (
-            path.join(base_path, "Meta-Llama-4-Base@model-only.json"),
-            "meta-llama/Meta-Llama-4-Base@model-only",
-            "llama4-base",
-        ),
-        (
-            path.join(base_path, "Meta-Llama-3.1-70B-Instruct@reasoning.json"),
-            "meta-llama/Meta-Llama-3.1-70B-Instruct@reasoning",
-            "llama3.1-70b-instruct",
-        ),
-        (
-            path.join(base_path, "Claude-3.5-Sonnet-20241022@reasoning.json"),
-            "anthropic/Claude-3.5-Sonnet-20241022@reasoning",
-            "claude-3-5-sonnet-20241022",
-        ),
-        (
-            path.join(base_path, "gpt-o3-mini@reasoning.json"),
-            "openai/GPT-o3-mini@reasoning",
-            "gpt-o3-mini",
-        ),
-        (
-            path.join(base_path, "gpt-4o@reasoning.json"),
-            "openai/GPT-4o@reasoning",
+            path.join(base_path, "gpt-4o@reasoning-debug.json"),
+            "openai/GPT-4o@reasoning-debug",
             "gpt-4o-evals2",
         ),
     ]
