@@ -9,22 +9,28 @@ Solvers](https://arxiv.org/abs/2502.15776).
 
 ### Initial Setup
 
-Currently, there is no default LLM inference provider availabe. We use an
-internal provider at Meta, which is not part of the open source release. To get
-started, create an implementation of `chat_completion.py` for your inference
-back-end in `inference/your_inference_provider.py`. Then replace the
-`DummyChatCompletion` in `inference/chat_completion_factory.py` by your new
-provider. If your provider requires secrets, we suggest to use the `dotenv`
-library and add them to a `.env` file. You can use the `.env-example` as a
+1) Currently, there is no default LLM inference provider availabe. We use an
+internal provider for our experiments, which is not part of the open source
+release. To get started, create an implementation of `chat_completion.py` for
+your inference back-end, e.g. in `inference/your_inference_provider.py`. Then
+set the following two variables in a `.env` file:
+
+```.env
+CHAT_COMPLETION_MODULE_PATH=path/to/your/chat_completion.py
+CHAT_COMPLETION_CLASS_NAME=YourChatCompletion
+```
+
+If your provider requires secrets, we suggest to add them to the `.env` file as
+well and load them using `os.getenv(...)`. You can use the `.env-example` as a
 starting point.
 
-Set up Conda environment:
+2) The next step is to set up the Conda environment:
 ```bash
 conda env create --file environment.yml
 conda activate polymath
 ```
 
-Log into your huggingface account to download datasets:
+3) Log into your huggingface account to download datasets:
 ```bash
 huggingface-cli login
 ```
@@ -34,7 +40,7 @@ is granted immediately upon filling out a form:
 - https://huggingface.co/datasets/yale-nlp/FOLIO
 - https://huggingface.co/datasets/allenai/ZebraLogicBench-private
 
-Finally, install datasets and remaining dependencies:
+4) Finally, install datasets and remaining dependencies:
 ```bash
 ./scripts/setup.sh
 ```
