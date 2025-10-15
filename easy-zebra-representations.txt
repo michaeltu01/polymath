@@ -1,0 +1,72 @@
+# DATA STRUCTURE
+
+class Volcanologist:
+    id: Unique[Domain[int, range(1, 5)]]  # Each volcanologist has a unique ID from 1 to 4
+    laptop: Unique[Domain[str, "green", "pink", "purple", "yellow"]]  # Unique laptop colors
+    name: Unique[Domain[str, "emily", "kimberly", "lauren", "samantha"]]  # Unique names
+    volcano: Unique[Domain[str, "lavadome", "scoriacone", "submarine", "supervolcano"]]  # Unique volcano types
+    activity: Unique[Domain[str, "fluctuating", "increasing", "stable", "veryhigh"]]  # Unique activity levels
+
+class Solution:
+    volcanologists: list[Volcanologist, 4]  # List of 4 volcanologists
+
+
+
+# PYTHON CONSTRAINTS
+
+def validate(solution: Solution) -> None:
+    # Constraint 1: The volcanologist monitoring a volcano with a Very high activity level is in the second position.
+    very_high = nondet(solution.volcanologists)
+    assume(very_high.activity == "veryhigh")
+    assert very_high.id == 2
+    
+    # Constraint 2: The scientist studying the Supervolcano is in the third position.
+    supervolcano = nondet(solution.volcanologists)
+    assume(supervolcano.volcano == "supervolcano")
+    assert supervolcano.id == 3
+    
+    # Constraint 3: The scientist who is monitoring the Lava dome volcano is immediately after the scientist studying the Supervolcano.
+    lavadome = nondet(solution.volcanologists)
+    assume(lavadome.volcano == "lavadome")
+    assert lavadome.id == supervolcano.id + 1  # Lava dome is immediately after Supervolcano
+    
+    # Constraint 4: The volcanologist who is monitoring the Scoria cone volcano is observing a Fluctuating activity level.
+    scoriacone = nondet(solution.volcanologists)
+    assume(scoriacone.volcano == "scoriacone")
+    assert scoriacone.activity == "fluctuating"
+    
+    # Constraint 5: Lauren is in the second position.
+    lauren = nondet(solution.volcanologists)
+    assume(lauren.name == "lauren")
+    assert lauren.id == 2  # This constraint was redundant as Lauren is already assigned to the second position
+    
+    # Constraint 6: The scientist observing a volcano with a Stable activity level is next to Samantha.
+    stable = nondet(solution.volcanologists)
+    assume(stable.activity == "stable")
+    samantha = nondet(solution.volcanologists)
+    assume(samantha.name == "samantha")
+    assert abs(stable.id - samantha.id) == 1  # Stable and Samantha are next to each other
+    
+    # Constraint 7: The volcanologist studying the Submarine volcano is immediately after the scientist using the Yellow laptop.
+    submarine = nondet(solution.volcanologists)
+    assume(submarine.volcano == "submarine")
+    yellow_laptop = nondet(solution.volcanologists)
+    assume(yellow_laptop.laptop == "yellow")
+    assert submarine.id == yellow_laptop.id + 1  # Submarine is immediately after Yellow laptop
+    
+    # Constraint 8: The volcanologist monitoring a volcano with an Increasing activity level is immediately after the scientist using the Pink laptop.
+    increasing = nondet(solution.volcanologists)
+    assume(increasing.activity == "increasing")
+    pink_laptop = nondet(solution.volcanologists)
+    assume(pink_laptop.laptop == "pink")
+    assert increasing.id == pink_laptop.id + 1  # Increasing is immediately after Pink laptop
+    
+    # Constraint 9: Emily is immediately after the volcanologist who is using the Purple laptop.
+    emily = nondet(solution.volcanologists)
+    assume(emily.name == "emily")
+    purple_laptop = nondet(solution.volcanologists)
+    assume(purple_laptop.laptop == "purple")
+    assert emily.id == purple_laptop.id + 1  # Emily is immediately after the Purple laptop holder
+
+    # Constraint 10: Lauren is immediately before Emily.
+    assert emily.id == lauren.id + 1  # Emily is right after Lauren

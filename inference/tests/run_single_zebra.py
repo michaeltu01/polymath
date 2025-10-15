@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 
 from agent.logic.agent import LogicAgent
 from agent.logic.cbmc_search_engine_strategy import CBMCSearchEngineStrategy
+from agent.logic.forge.forge_agent import ForgeAgent
+from agent.logic.forge.forge_search_engine_strategy import ForgeSearchEngineStrategy
 from agent.logic.zebra_benchmark import ZebraBenchmark
 from inference.chat_completion import Role
 from inference.chat_completion_factory import create_chat_completion
@@ -72,22 +74,16 @@ async def main() -> None:
     solution_placeholder = build_solution_placeholder(num_volcanologists, header)
     output_format = ZebraBenchmark.get_format(solution_placeholder)
 
-    print("Output format:", output_format)
-
     result_trace = ResultTrace("single-zebra")
 
     log_buffer = StringIO()
     with LoggerFactory(log_buffer) as logger_factory:
         async with create_chat_completion(getLogger, model_name) as chat:
             # Use the CBMC-backed search engine to solve the puzzle
-            engine = CBMCSearchEngineStrategy(logger_factory, puzzle, output_format)
-            agent = LogicAgent(logger_factory, chat, engine, result_trace)
-
-            # Provide a minimal system prompt for consistency
-            # agent.client.add_message(
-            #     "You are a careful reasoning assistant that outputs only the requested JSON.",
-            #     Role.SYSTEM,
-            # )
+            # engine = CBMCSearchEngineStrategy(logger_factory, puzzle, output_format)
+            engine = ForgeSearchEngineStrategy(logger_factory, puzzle, output_format)
+            # agent = LogicAgent(logger_factory, chat, engine, result_trace)
+            agent = ForgeAgent(logger_factory, chat, engine, result_trace)
 
             await agent.solve()
 

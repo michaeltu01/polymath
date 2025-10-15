@@ -1,27 +1,29 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
+"""
+Forge Agent
 
-import os
+This module should implement a LogicAgent subclass that uses the Forge backend.
+
+TODO:
+- Integrate the Forge harness generator and search engine strategy.
+- Implement any LogicAgent methods that need to be customized for Forge.
+"""
+
 from logging import Logger
-from re import compile, DOTALL, Match, Pattern
-from tempfile import gettempdir
+from re import DOTALL, Match, Pattern, compile
 from typing import Callable, Optional, Tuple
-
+from agent.logic.agent import LogicAgent
+from agent.logic.forge.forge_search_engine_strategy import ForgeSearchEngineStrategy
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
-from agent.logic.solver import Solver
+from libcst import MetadataWrapper, parse_module, Module
+from libcst._exceptions import ParserSyntaxError
+from tempfile import NamedTemporaryFile
+import os
+
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
-from aiofiles.tempfile import NamedTemporaryFile
 from concurrency.subprocess import Subprocess
 from inference.chat_completion import ChatCompletion, Role
 from inference.client import InferenceClient
-
 from judge.result_trace import ResultTrace
-
-from libcst import MetadataWrapper, Module, parse_module, ParserSyntaxError
-
 
 # Sent if an expected code snippet was not found.
 NO_CODE_FOUND_MESSAGE: str = """I could not find the requested output code snippet in your last message. Please make sure you mark it as follows:
@@ -37,21 +39,13 @@ CODE_EXTRACTION_PATTERN: Pattern = compile(r".*```[^\n]*\n+(.*)```.*", DOTALL)
 # Code marker pattern. We remove redundant markers when extracting code from concatenated messages due to token limits.
 CODE_MARKER_PATTERN: Pattern = compile(r"```[^\n]*")
 
-# Number of times we retry an operation, e.g. extracting code from a response.
-RETRY_COUNT: int = 5
+RETRY_COUNT = 3
+_SOLVER_TIMEOUT = 60  # seconds
 
-# Constraints taking longer to solve than this are likely incorrect
-_SOLVER_TIMEOUT: float = 15
-
-
-class LogicAgent(Solver):
+class ForgeAgent(LogicAgent):
     """
-    Basic agent prompting LLM to:
-    1) Define a data structure to hold the answer of a request/puzzle.
-    2) Define constraints for a valid solution.
-    3) Generate a valid solution using a solver back-end.
+    LogicAgent subclass for the Forge backend.
     """
-
     def __init__(
         self,
         logger_factory: Callable[[str], Logger],
@@ -81,13 +75,8 @@ class LogicAgent(Solver):
         self.__result_trace: ResultTrace = result_trace
         self.__collect_pyre_type_information: bool = collect_pyre_type_information
 
-    async def solve(self) -> None:
-        """
-        Solves the task in the configured engine strategy. This is actually just
-        a retry wrapper around `__solve`, where retries are mostly triggered by
-        Python or solver syntax errors. In these cases, we trigger a trajectory
-        from scratch, to avoid repeating the same sequences.
-        """
+    # TODO: Override methods as needed for Forge-specific logic
+    async def solve(self):
         attempt: int = 0
         while True:
             attempt_failed: bool
@@ -115,7 +104,7 @@ Constraints:
                 break
             self.__logger.warning("Retrying solution finding due to recoverable error.")
             self.__result_trace.num_agent_retries += 1
-
+    
     async def __solve(self) -> bool:
         """
         Retryable solution attempt. Includes data structure and constraints
@@ -136,7 +125,7 @@ Constraints:
         if not solution:
             return retry_if_failed
 
-        await self.__format_solution(solution)
+        # await self.__format_solution(solution)
         return False
 
     async def __generate_data_structure(self) -> Optional[str]:
@@ -222,6 +211,8 @@ Constraints:
             )
             self.__result_trace.solver_constraints = solver_constraints
 
+            return None, False
+
             solver_input_file_suffix: str = (
                 self.__engine_strategy.solver_input_file_suffix
             )
@@ -279,35 +270,7 @@ Constraints:
                     self.__client.add_message(
                         self.__engine_strategy.retry_prompt, Role.USER
                     )
-
-    async def __format_solution(self, solution: str) -> None:
-        """
-        Asks the model to transform the solution provided by the solver, which
-        may be expressed as an instance of the data structured defined by the
-        model, into the output solution format expected by the benchmark. For
-        some engines (e.g. the SMT conclusion check), this step will be skipped,
-        because the output by the solver is already the expected output.
-
-        The (potentially reformatted) solution will be written to
-        `self.__result_trace.solution`.
-
-        Args:
-            solution (str): Solution provided by solver engine, in its format.
-        """
-        format_prompt: Optional[str] = self.__engine_strategy.get_format_prompt(
-            solution
-        )
-        formatted_solution: Optional[str]
-        if format_prompt:
-            self.__client.add_message(format_prompt, Role.USER)
-            formatted_solution = await self.__receive_code_response(
-                "formatted solution"
-            )
-        else:
-            formatted_solution = solution
-
-        self.__result_trace.solution = formatted_solution
-
+    
     async def __receive_code_response(
         self, expected_content_description: str
     ) -> Optional[str]:
@@ -331,7 +294,7 @@ Constraints:
             if response_text is None:
                 return None
 
-            code: Optional[str] = LogicAgent.__extract_code(response_text)
+            code: Optional[str] = ForgeAgent.__extract_code(response_text)
             if code:
                 return code
 
