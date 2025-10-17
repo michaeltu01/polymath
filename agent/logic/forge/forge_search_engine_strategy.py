@@ -22,25 +22,33 @@ _CONSTRAINTS_MESSAGE: str = """Now you must generate a validation function which
 
 * Express your constraints in Python, but do not use any loops or comprehensions.
 * Do not generate constraints that are already enforced by the data type you selected, e.g. if a data type is marked as `Unique` you do not need to generate an explicit constraint for this anymore.
-* Be consistent! If a class has an explicit `id` or similar field, always use that field when expressing constraints, not the element's location in a container. You cannot assume that its order in a container matches this field, since that order may be non-deterministic to your solver tool.
-* To find elements in a collection with specific characteristics, you can use free variables and assumptions instead. Here are a few examples:
+* You can assume that the order of elements is based on the numbers in its name (e.g. `Volcanologist1` is before `Volcanologist2`).
+* The `solution` class contains mappings from every element to its corresponding fields. To find elements in a collection with specific characteristics, you must access the element via the properties of the `solution` class. Here are a few examples:
 
 Puzzle condition: "Bob is the person who owns a dog"
 Constraint:
 ```
-bob = nondet(solution.people)
-assume(bob.name == "Bob")
-assert bob.pet == "dog"
+bob = solution.name.bob
+dog_owner = solution.pet.dog
+assert bob == dog_owner
 ```
 
 Puzzle condition: "The coffee drinker is taller than the tea drinker"
 Constraint:
 ```
-coffee_drinker = nondet(solution.people)
-assume(coffee_drinker.drink == "coffee")
-tea_drinker = nondet(solution.people)
-assume(tea_drinker.drink == "tea")
-assert coffee_drinker.height > tea_drinker.height
+coffee_drinker = solution.drink.coffee
+tea_drinker = solution.drink.tea
+assert solution.height.coffee_drinker > solution.height.tea_drinker
+```
+
+* Use `immediatelyBefore` to express adjacency relations, e.g. `immediatelyBefore(a, b)` asserts that `a` is immediately before `b` (i.e. `Volcanologist1` is immediately before `Volcanologist2`). Here's an example:
+
+Puzzle condition: "The green house is immediately to the right of the ivory house"
+Constraint:
+```
+ivory_house = solution.color.ivory
+green_house = solution.color.green
+assert immediatelyBefore(ivory_house, green_house)
 ```
 
 The validation function signature must look as follows:
@@ -54,7 +62,7 @@ Now generate the conditions necessary to check that a solution to the puzzle is 
 """
 
 # Kicks off the data structure generation by the model.
-_DATA_STRUCTURE_MESSAGE: str = """Here is the puzzle:
+_PUZZLE_PROMPT: str = """Here is the puzzle:
 ```
 {}
 ```
@@ -72,7 +80,7 @@ Now convert it to the expected output format:
 ```"""
 
 # Instructs the model on how to generate a solution data structure.
-_SYSTEM_PROMPT: str = """You are an expert puzzle solving agent with access to a propositional logic solver tool that has a convenient interface optimised for you. Your boss has given you a logic puzzle that he thinks can be mapped to your logic solver tool. You must solve this puzzle in two steps:
+_DATA_STRUCTURE_MESSAGE: str = """You are an expert puzzle solving agent with access to a propositional logic solver tool that has a convenient interface optimised for you. Your boss has given you a logic puzzle that he thinks can be mapped to your logic solver tool. You must solve this puzzle in two steps:
 
 1. Define the data type for a valid puzzle solution
 2. Define the logical constraints for a valid puzzle solution
@@ -84,17 +92,16 @@ Your solver tool allows you to specify the output solution type as Python classe
 
 * Just like in SQL, each field can be marked as unique, meaning no two instances of the class can have the same value, e.g.: `id: Unique[int]`
 * Each field can have a value constraint assigned to it, such that only these values are allowed, e.g.: `id: Domain[int, range(1, 11)]` allows id values between 1 (inclusive) and 11 (exclusive), or `name: Domain[str, \"John\", \"Jane\", \"Peter\"]` allows only the strings \"John\", \"Jane\", or \"Peter\". 
-* The `list` type allows for a second type argument specifying the size, e.g.: `list[int, 10]`.
+* You can define relationships between classes using the `Function` type, e.g.: `manager: Function[Domain[Employee, Employee]]` defines a mapping from each `Employee` to their `manager`, who is also an `Employee`. Note that functions are total, i.e. every instance of the source type must have a mapping to an instance of the target type.
 
 Here is an example that uses these features in combination:
 ```
 class Row:
-    id: Unique[Domain[int, range(1, 11)]]
-    name: Unique[Domain[str, \"John\", \"Jane\", \"Peter\"]]
-    music: Unique[Domain[str, \"Jazz\", \"Rock\", \"Pop\"]]
+    id: Unique[Domain[int, range(1, 4)]]
 
 class Table:
-    rows: list[Row, 10]
+    name: Function[Domain[tuple(Row, str), (Row1, \"Alice\"), (Row2, \"Bob\"), (Row3, \"Charlie\")]]]
+    music: Function[Domain[tuple(Row, str), (Row1, \"Rock\"), (Row2, \"Jazz\"), (Row3, \"Classical\")]]]
 ```
 
 Always constrain data types according to all the information you can identify in the puzzle text. This is critical for solving the puzzle.
@@ -134,7 +141,10 @@ class ForgeSearchEngineStrategy(EngineStrategy):
     
     @property
     def data_structure_prompt(self) -> str:
-        return _DATA_STRUCTURE_MESSAGE.format(self.__task)
+        """
+        Prompt sent to the LLM instructing it to generate the data structure.
+        """
+        return _DATA_STRUCTURE_MESSAGE.format(self.__output_format)
 
     async def generate_solver_constraints(
         self, module: Module, metadata: Optional[MetadataWrapper]
@@ -190,4 +200,7 @@ class ForgeSearchEngineStrategy(EngineStrategy):
 
     @property
     def system_prompt(self) -> str:
-        return _DATA_STRUCTURE_MESSAGE.format(self.__task)
+        """
+        Initiates the first prompt sent to the LLM to describe the task.
+        """
+        return _PUZZLE_PROMPT.format(self.__task)
