@@ -12,6 +12,23 @@ TODO:
 
 from libcst import AnnAssign, CSTVisitor, Call, ClassDef, Index, Integer, MetadataWrapper, Module, Name, SimpleString, List, Subscript, SubscriptElement
 from libcst.display import dump
+from dataclasses import dataclass
+
+
+@dataclass
+class DomainProps:
+    type_name: str
+    values: list[any]
+
+@dataclass
+class ClassProps:
+    isOneSig: bool
+    fields: list[str]
+
+@dataclass
+class ListProps:
+    type_name: str
+    length: int
 
 class LogicPyForgeDataStructureGenerator(CSTVisitor):
     """
@@ -20,16 +37,17 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
     def __init__(self):
         super().__init__()
         # TODO: Initialize data structures to store class/type info
-        self.domains = {} # field -> (type_name, [values])
-        self.classes = {} # class_name -> [field_names]
-        self.forge_code = ""
-        self.unique_fields = set()
+        self.domains: dict[str, DomainProps] = {} # field -> DomainProps
+        self.classes: dict[str, ClassProps] = {} # class_name -> ClassProps
+        self.list_fields: dict[str, ListProps] = {} # field -> ListProps
+        self.forge_code: str = ""
+        self.unique_fields: set = set()
 
     # TODO: Implement visit_ClassDef and other relevant visitor methods
     def visit_ClassDef(self, node: ClassDef):
         class_name = node.name.value
         self.current_class = class_name
-        self.classes[class_name] = []
+        self.classes[class_name] = ClassProps(isOneSig=(class_name == "Solution"), fields=[])
     
     def visit_AnnAssign(self, node: AnnAssign):
         field_name = getattr(node.target, "value", None)
@@ -77,17 +95,16 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
 
             # Record field under the current class
             if field_name:
-                self.domains[field_name] = (domain_type, domain_values)
-                self.classes[self.current_class] = self.classes[self.current_class] + [field_name]
+                self.domains[field_name] = DomainProps(type_name=domain_type, values=domain_values)
+                self.classes[self.current_class].fields = self.classes[self.current_class].fields + [field_name]
             return
 
         # TODO: handle other annotations (e.g., list[Volcanologist, 4]) so Solution.volcanologists is captured
         # Example: detect Subscript(Name("list"), elements=[Volcanologist, 4]) and record the field on Solution.
 
         # Handle list[T, N]
-        # Unroll the type T for N elements
+        # Add list fields to class variable `list_fields`
         if isinstance(node, Subscript) and isinstance(node.value, Name) and node.value.value == "list":
-            # FIXME: Fix the `list` primitive conversion
             elements = node.slice or []
             if elements and len(elements) >= 1:
                 first: SubscriptElement = elements[0]
@@ -102,8 +119,8 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
                 if isinstance(secondIndex.value, Integer):
                     list_length = int(secondIndex.value.value)
                     if field_name:
-                        self.domains[list_type] = (list_type, [f"{list_type.capitalize() if list_type.islower() else list_type}{i}" for i in range(1, list_length + 1)])
-                        self.classes[self.current_class] = self.classes[self.current_class] + [field_name]
+                        self.classes[self.current_class].fields = self.classes[self.current_class].fields + [field_name]
+                        self.list_fields[field_name] = ListProps(type_name=list_type, length=list_length)
             return
 
     # TODO: Add methods to output Forge data structure code as a string
@@ -111,18 +128,31 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
         # Generate Forge code for domains
         forge_lines = []
 
-        # Generate the Forge sigs corresponding to the Logic.py domains
-        for field, (type_name, values) in self.domains.items():
-            forge_lines.append(f"abstract sig {field.capitalize() if field.islower() else field} {{}}")
+        # Generate the Forge abstract sigs and one sigs corresponding to the Logic.py domains
+        for field, domain_props in self.domains.items():
+            values = domain_props.values
+
+            field_name = field.capitalize() if field.islower() else field
+            forge_lines.append(f"abstract sig {field_name} {{}}")
             for v in values:
                 sig_name = v.capitalize() if v.islower() else v
-                forge_lines.append(f"one sig {sig_name} extends {field.capitalize() if field.islower() else field} {{}}")
+                forge_lines.append(f"one sig {sig_name} extends {field_name} {{}}")
 
-        # Solution sig
+        # Generate Forge sigs corresponding to classes
         forge_lines.append("")
-        forge_lines.append("one sig Solution {")
-        for field, (type_name, values) in self.domains.items():
-            if field not in self.classes:
-                forge_lines.append(f"    {field}:{" func " if field in self.unique_fields else " "}Volcanologist -> {field.capitalize() if field.islower() else field},")
-        forge_lines.append("}")
+        for class_name, class_props in self.classes.items():
+            sig_annotation = "one " if class_props.isOneSig else ""
+            forge_lines.append(f"{sig_annotation}sig {class_name} {{")
+            for i, field in enumerate(class_props.fields):
+                field_type: str
+                if field in self.list_fields:
+                    field_type = f"pfunc Int->{self.list_fields[field].type_name}"
+                else:
+                    field_annotation = "one " if field in self.unique_fields else ""
+                    field_type = f"{field_annotation}{field.capitalize() if field.islower() else field}"
+                
+                comma = "," if i < len(class_props.fields) - 1 else ""
+                forge_lines.append(f"    {field}: {field_type}{comma}")
+            forge_lines.append("}")
+        
         self.forge_code = "\n".join(forge_lines)
