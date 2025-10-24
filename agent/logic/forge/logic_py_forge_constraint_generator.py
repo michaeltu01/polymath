@@ -26,32 +26,32 @@ class ForgeOperator(Enum):
     OR = 2
 
 # FIXME: Rename ForgeConstraint to ForgeExpr
-class ForgeConstraint:
+class ForgeExpr:
     pass
 
 @dataclass
-class ForgeExpr(ForgeConstraint):
+class ForgeConstraint(ForgeExpr):
     operator: ForgeOperator
-    lhs: ForgeConstraint 
-    rhs: ForgeConstraint
+    lhs: ForgeExpr 
+    rhs: ForgeExpr
 
 @dataclass
-class ForgePredicateCall(ForgeConstraint):
+class ForgePredicateCall(ForgeExpr):
     predicate: str
     params: list[str]
 
 @dataclass
-class ForgeFunctionLookup(ForgeConstraint):
+class ForgeFunctionLookup(ForgeExpr):
     function: str
     key: str
 
 @dataclass
-class ForgeAttributeAccess(ForgeConstraint):
-    object: ForgeConstraint
+class ForgeAttributeAccess(ForgeExpr):
+    object: ForgeExpr
     attr_name: ForgeSymbol
 
 @dataclass
-class ForgeSymbol(ForgeConstraint):
+class ForgeSymbol(ForgeExpr):
     name: str
 
 class LogicPyForgeConstraintGenerator(CSTVisitor):
@@ -61,8 +61,8 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
     # NOTE: Potentially, I need some metadata about the puzzle's data structures
     def __init__(self):
         super().__init__()
-        self.constraints: list[ForgeConstraint] = [] # List of all constraints found maintained in the order of the definition in Forge
-        self.nondet_vars_to_constraints: dict[str, list[ForgeConstraint]] = {} # nondet_var_name -> list of asserts and assumes
+        self.constraints: list[ForgeExpr] = [] # List of all constraints found maintained in the order of the definition in Forge
+        self.nondet_vars_to_constraints: dict[str, list[ForgeExpr]] = {} # nondet_var_name -> list of asserts and assumes
         self.forge_code = ""
         self.__cur_nondet_var = ""
 
@@ -102,7 +102,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                             left = self._expr_to_forge(assume_arg.left)
                             right = self._expr_to_forge(assume_arg.comparisons[0].comparator)
 
-                            constraint = ForgeExpr(operator=ForgeOperator.EQUALS, lhs=left, rhs=right)
+                            constraint = ForgeConstraint(operator=ForgeOperator.EQUALS, lhs=left, rhs=right)
                             self.constraints.append(constraint)
                             self.nondet_vars_to_constraints[self.__cur_nondet_var].append(constraint)
                         # NOTE: handle other operators with assume HERE
@@ -128,7 +128,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                             if left_predicate and left_params and right_predicate and right_params:
                                 lhs = ForgePredicateCall(predicate=left_predicate, params=left_params)
                                 rhs = ForgePredicateCall(predicate=right_predicate, params=right_params)
-                                constraint = ForgeExpr(operator=ForgeOperator.OR, lhs=lhs, rhs=rhs)
+                                constraint = ForgeConstraint(operator=ForgeOperator.OR, lhs=lhs, rhs=rhs)
                                 self.constraints.append(constraint)
                                 self.nondet_vars_to_constraints[self.__cur_nondet_var].append(constraint)
                         else:
@@ -154,7 +154,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
             return "immediatelyBefore", params
         return "", []
 
-    def _expr_to_forge(self, expr) -> ForgeConstraint:
+    def _expr_to_forge(self, expr) -> ForgeExpr:
         """
         Converts a CST expression to a ForgeExpr object.
         """
@@ -171,13 +171,13 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         else:
             raise ValueError(f"expr_to_forge: Unhandled expression type: {type(expr)}")
 
-    def _forge_constraint_to_str(self, expr: ForgeConstraint) -> str:
+    def _forge_constraint_to_str(self, expr: ForgeExpr) -> str:
         """
         Converts a Forge constraint to a String.
         """
 
         match expr:
-            case ForgeExpr(op, lhs, rhs):
+            case ForgeConstraint(op, lhs, rhs):
                 match op:
                     case ForgeOperator.EQUALS:
                         return f"{self._forge_constraint_to_str(lhs)} = {self._forge_constraint_to_str(rhs)}"

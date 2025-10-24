@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from libcst import Module, parse_module
 
-from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator, ForgeConstraint, ForgeExpr, ForgePredicateCall, ForgeAttributeAccess, ForgeFunctionLookup, ForgeOperator, ForgeSymbol
+from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator, ForgeExpr, ForgeConstraint, ForgePredicateCall, ForgeAttributeAccess, ForgeFunctionLookup, ForgeOperator, ForgeSymbol
 
 class TestLogicPyForgeConstraintGenerator(TestCase):
     def __init__(self, methodName="runTest") -> None:
