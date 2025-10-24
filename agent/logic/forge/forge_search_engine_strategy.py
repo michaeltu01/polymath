@@ -22,23 +22,26 @@ _CONSTRAINTS_MESSAGE: str = """Now you must generate a validation function which
 
 * Express your constraints in Python, but do not use any loops or comprehensions.
 * Do not generate constraints that are already enforced by the data type you selected, e.g. if a data type is marked as `Unique` you do not need to generate an explicit constraint for this anymore.
-* You can assume that the order of elements is based on the numbers in its name (e.g. `Volcanologist1` is before `Volcanologist2`).
-* The `solution` class contains mappings from every element to its corresponding fields. To find elements in a collection with specific characteristics, you must access the element via the properties of the `solution` class. Here are a few examples:
+* Be consistent! If a class has an explicit `id` or similar field, always use that field when expressing constraints, not the element's location in a container. You cannot assume that its order in a container matches this field, since that order may be non-deterministic to your solver tool.
+* Also, be consistent with the data structure! Whatever the solution data structure name is should match how it is referenced in the constraints.
+* To find elements in a collection with specific characteristics, you can use free variables and assumptions instead. Here are a few examples:
 
 Puzzle condition: "Bob is the person who owns a dog"
 Constraint:
 ```
-bob = solution.name.bob
-dog_owner = solution.pet.dog
-assert bob == dog_owner
+bob = nondet(solution.people)
+assume(bob.name == "Bob")
+assert bob.pet == "dog"
 ```
 
 Puzzle condition: "The coffee drinker is taller than the tea drinker"
 Constraint:
 ```
-coffee_drinker = solution.drink.coffee
-tea_drinker = solution.drink.tea
-assert solution.height.coffee_drinker > solution.height.tea_drinker
+coffee_drinker = nondet(solution.people)
+assume(coffee_drinker.drink == "coffee")
+tea_drinker = nondet(solution.people)
+assume(tea_drinker.drink == "tea")
+assert coffee_drinker.height > tea_drinker.height
 ```
 
 * Use `immediatelyBefore` to express adjacency relations, e.g. `immediatelyBefore(a, b)` asserts that `a` is immediately before `b` (i.e. `Volcanologist1` is immediately before `Volcanologist2`). Here's an example:
@@ -46,8 +49,10 @@ assert solution.height.coffee_drinker > solution.height.tea_drinker
 Puzzle condition: "The green house is immediately to the right of the ivory house"
 Constraint:
 ```
-ivory_house = solution.color.ivory
-green_house = solution.color.green
+ivory_house = nondet(solution.house)
+assume(ivory_house.color == ivory)
+green_house = nondet(solution.house)
+assume(green_house.color == green)
 assert immediatelyBefore(ivory_house, green_house)
 ```
 
@@ -92,16 +97,17 @@ Your solver tool allows you to specify the output solution type as Python classe
 
 * Just like in SQL, each field can be marked as unique, meaning no two instances of the class can have the same value, e.g.: `id: Unique[int]`
 * Each field can have a value constraint assigned to it, such that only these values are allowed, e.g.: `id: Domain[int, range(1, 11)]` allows id values between 1 (inclusive) and 11 (exclusive), or `name: Domain[str, \"John\", \"Jane\", \"Peter\"]` allows only the strings \"John\", \"Jane\", or \"Peter\". 
-* You can define relationships between classes using the `Function` type, e.g.: `manager: Function[Domain[Employee, Employee]]` defines a mapping from each `Employee` to their `manager`, who is also an `Employee`. Note that functions are total, i.e. every instance of the source type must have a mapping to an instance of the target type.
+* The `list` type allows for a second type argument specifying the size, e.g.: `list[int, 10]`.
+* Name the class containing the solution: "Solution"
 
 Here is an example that uses these features in combination:
 ```
 class Row:
-    id: Unique[Domain[int, range(1, 4)]]
+    name: Unique[Domain[str, \"John\", \"Jane\", \"Peter\"]]
+    music: Unique[Domain[str, \"Jazz\", \"Rock\", \"Pop\"]]
 
 class Table:
-    name: Function[Domain[tuple(Row, str), (Row1, \"Alice\"), (Row2, \"Bob\"), (Row3, \"Charlie\")]]]
-    music: Function[Domain[tuple(Row, str), (Row1, \"Rock\"), (Row2, \"Jazz\"), (Row3, \"Classical\")]]]
+    rows: list[Row, 10]
 ```
 
 Always constrain data types according to all the information you can identify in the puzzle text. This is critical for solving the puzzle.
@@ -149,11 +155,10 @@ class ForgeSearchEngineStrategy(EngineStrategy):
     async def generate_solver_constraints(
         self, module: Module, metadata: Optional[MetadataWrapper]
     ) -> str:
-        return LogicPyForgeHarnessGenerator.generate(metadata)
+        return LogicPyForgeHarnessGenerator.generate(module)
 
     def generate_solver_invocation_command(self, solver_input_file: str) -> list[str]:
-        # TODO: Generate Forge solver command
-        ...
+        return " ".join(["racket", "forge", solver_input_file])
 
     def get_format_prompt(self, solution: str) -> Optional[str]:
         """
@@ -196,7 +201,7 @@ class ForgeSearchEngineStrategy(EngineStrategy):
 
     @property
     def solver_input_file_suffix(self) -> str:
-        return ".c"
+        return ".frg"
 
     @property
     def system_prompt(self) -> str:

@@ -8,6 +8,7 @@ TODO:
 - Implement any LogicAgent methods that need to be customized for Forge.
 """
 
+import uuid
 from logging import Logger
 from re import DOTALL, Match, Pattern, compile
 from typing import Callable, Optional, Tuple
@@ -16,7 +17,7 @@ from agent.logic.forge.forge_search_engine_strategy import ForgeSearchEngineStra
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
 from libcst import MetadataWrapper, parse_module, Module
 from libcst._exceptions import ParserSyntaxError
-from tempfile import NamedTemporaryFile
+from aiofiles.tempfile import NamedTemporaryFile
 import os
 
 from agent.symex.module_with_type_info_factory import ModuleWithTypeInfoFactory
@@ -145,7 +146,7 @@ Constraints:
         )
         if data_structure:
             self.__result_trace.python_data_structure = data_structure
-            print(self.__result_trace.python_data_structure)
+            print("Printing data structure from _generate_data_structure:", self.__result_trace.python_data_structure)
             return data_structure
         self.__logger.error("Failed to define solution data structure.")
         return None
@@ -186,19 +187,9 @@ Constraints:
 """
             self.__result_trace.python_code = python_code
 
-            print(self.__result_trace.python_code)
-
             module: Module
-            metadata: Optional[MetadataWrapper]
             try:
-                if self.__collect_pyre_type_information:
-                    metadata = await ModuleWithTypeInfoFactory.create_module(
-                        python_code
-                    )
-                    module = metadata.module
-                else:
-                    module = parse_module(python_code)
-                    metadata = None
+                module = parse_module(python_code)
             except ParserSyntaxError:
                 self.__logger.exception("Parser error when reading constraint")
                 self.__result_trace.num_logic_py_syntax_errors += 1
@@ -206,70 +197,85 @@ Constraints:
 
             solver_constraints: str = (
                 await self.__engine_strategy.generate_solver_constraints(
-                    module, metadata
+                    module, None
                 )
             )
             self.__result_trace.solver_constraints = solver_constraints
 
-            return None, False
-
             solver_input_file_suffix: str = (
                 self.__engine_strategy.solver_input_file_suffix
             )
-            solver_exit_code: int
-            stdout: str
-            stderr: str
-            async with NamedTemporaryFile(
-                mode="w", suffix=solver_input_file_suffix, delete_on_close=False
-            ) as file:
-                await file.write(solver_constraints)
-                await file.close()
 
-                solver_input_file: str = str(file.name)
-                try:
-                    solver_exit_code, stdout, stderr = await Subprocess.run(
-                        *self.__engine_strategy.generate_solver_invocation_command(
-                            solver_input_file
-                        ),
-                        timeout_in_s=_SOLVER_TIMEOUT,
-                    )
-                except TimeoutError:
-                    self.__logger.exception(
-                        f"""Solver timeout.
-Python Code:
-{self.__result_trace.python_code}
+            # Write solver constraints to a randomly generated file            
+            # Generate a random filename with the specified suffix
+            random_name = f"forge_constraints_{uuid.uuid4().hex[:8]}{solver_input_file_suffix}"
+            solver_input_file = os.path.join(os.getcwd(), random_name)
+            
+            # Write the constraints to the file
+            with open(solver_input_file, 'w') as f:
+                f.write(solver_constraints)
 
-Constraints:
-{self.__result_trace.solver_constraints}
-"""
-                    )
-                    self.__result_trace.num_solver_timeouts += 1
-                    return None, True
+            # For now, return the solver constraints as output (placeholder)
+            self.__result_trace.solver_output = solver_constraints
+            self.__result_trace.solver_exit_code = 0
 
-            self.__result_trace.solver_output = f"{stdout}{stderr}"
-            self.__result_trace.solver_exit_code = solver_exit_code
+            return solver_constraints, False
+#             stdout: str
+#             stderr: str
+#             async with NamedTemporaryFile(
+#                 mode="w", suffix=solver_input_file_suffix, delete_on_close=False
+#             ) as file:
+#                 await file.write(solver_constraints)
+#                 await file.close()
 
-            solver_outcome, output = self.__engine_strategy.parse_solver_output(
-                solver_exit_code, stdout, stderr
-            )
-            match solver_outcome:
-                case SolverOutcome.SUCCESS:
-                    return output, False
-                case SolverOutcome.FATAL:
-                    self.__result_trace.num_solver_errors += 1
-                    return None, True
-                case SolverOutcome.RETRY:
-                    attempts += 1
-                    if attempts >= RETRY_COUNT:
-                        self.__logger.error(
-                            "Exceeded retry limit for repairing constraints, giving up."
-                        )
-                        return None, False
+#                 solver_input_file: str = str(file.name)
+#                 print("Solver input file:", solver_input_file)
+#                 try:
+#                     solver_exit_code, stdout, stderr = await Subprocess.run(
+#                         *self.__engine_strategy.generate_solver_invocation_command(
+#                             solver_input_file
+#                         ),
+#                         timeout_in_s=_SOLVER_TIMEOUT,
+#                     )
+#                 except TimeoutError:
+#                     self.__logger.exception(
+#                         f"""Solver timeout.
+# Python Code:
+# {self.__result_trace.python_code}
 
-                    self.__result_trace.num_solver_retries += 1
-                    self.__client.add_message(
-                        self.__engine_strategy.retry_prompt, Role.USER
-                    )
+# Constraints:
+# {self.__result_trace.solver_constraints}
+# """
+#                     )
+#                     self.__result_trace.num_solver_timeouts += 1
+#                     return None, True
+
+            # self.__result_trace.solver_output = f"{stdout}{stderr}"
+            # self.__result_trace.solver_exit_code = solver_exit_code
+
+            # return self.__result_trace.solver_output, False
+
+            # solver_outcome, output = self.__engine_strategy.parse_solver_output(
+            #     solver_exit_code, stdout, stderr
+            # )
+            # match solver_outcome:
+            #     case SolverOutcome.SUCCESS:
+            #         return output, False
+            #     case SolverOutcome.FATAL:
+            #         self.__result_trace.num_solver_errors += 1
+            #         return None, True
+            #     case SolverOutcome.RETRY:
+            #         attempts += 1
+            #         if attempts >= RETRY_COUNT:
+            #             self.__logger.error(
+            #                 "Exceeded retry limit for repairing constraints, giving up."
+            #             )
+            #             return None, False
+
+            #         self.__result_trace.num_solver_retries += 1
+            #         self.__client.add_message(
+            #             self.__engine_strategy.retry_prompt, Role.USER
+            #         )
     
     async def __receive_code_response(
         self, expected_content_description: str

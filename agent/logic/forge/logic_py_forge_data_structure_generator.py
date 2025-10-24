@@ -152,7 +152,7 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
                     field_type = f"{field_annotation}{field.capitalize() if field.islower() else field}"
                 
                 comma = "," if i < len(class_props.fields) - 1 else ""
-                forge_lines.append(f"    {field}: {field_type}{comma}")
+                forge_lines.append(f"    {field.lower()}: {field_type}{comma}")
             forge_lines.append("}")
         
         self.forge_code = "\n".join(forge_lines)

@@ -131,6 +131,16 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                                 constraint = ForgeConstraint(operator=ForgeOperator.OR, lhs=lhs, rhs=rhs)
                                 self.constraints.append(constraint)
                                 self.nondet_vars_to_constraints[self.__cur_nondet_var].append(constraint)
+
+                        # Handle `Comparision`
+                        elif isinstance(assume_arg, Comparison):
+                            left = self._expr_to_forge(assume_arg.left)
+                            right = self._expr_to_forge(assume_arg.comparisons[0].comparator)
+
+                            constraint = ForgeConstraint(operator=ForgeOperator.EQUALS, lhs=left, rhs=right)
+                            self.constraints.append(constraint)
+                            self.nondet_vars_to_constraints[self.__cur_nondet_var].append(constraint)
+
                         else:
                             print("Unhandled branch within an assert statement:", dump(assert_stmt))
                             
