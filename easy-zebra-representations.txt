@@ -12,61 +12,61 @@ class Solution:
 
 
 
-# PYTHON CONSTRAINTS
+# EXAMPLE PYTHON CONSTRAINTS:
 
 def validate(solution: Solution) -> None:
-    # Constraint 1: The volcanologist monitoring a volcano with a Very high activity level is in the second position.
-    very_high = nondet(solution.volcanologists)
-    assume(very_high.activity == "veryhigh")
-    assert very_high.id == 2
-    
-    # Constraint 2: The scientist studying the Supervolcano is in the third position.
-    supervolcano = nondet(solution.volcanologists)
-    assume(supervolcano.volcano == "supervolcano")
-    assert supervolcano.id == 3
-    
-    # Constraint 3: The scientist who is monitoring the Lava dome volcano is immediately after the scientist studying the Supervolcano.
-    lavadome = nondet(solution.volcanologists)
-    assume(lavadome.volcano == "lavadome")
-    assert lavadome.id == supervolcano.id + 1  # Lava dome is immediately after Supervolcano
-    
-    # Constraint 4: The volcanologist who is monitoring the Scoria cone volcano is observing a Fluctuating activity level.
-    scoriacone = nondet(solution.volcanologists)
-    assume(scoriacone.volcano == "scoriacone")
-    assert scoriacone.activity == "fluctuating"
-    
-    # Constraint 5: Lauren is in the second position.
-    lauren = nondet(solution.volcanologists)
-    assume(lauren.name == "lauren")
-    assert lauren.id == 2  # This constraint was redundant as Lauren is already assigned to the second position
-    
-    # Constraint 6: The scientist observing a volcano with a Stable activity level is next to Samantha.
-    stable = nondet(solution.volcanologists)
-    assume(stable.activity == "stable")
-    samantha = nondet(solution.volcanologists)
-    assume(samantha.name == "samantha")
-    assert abs(stable.id - samantha.id) == 1  # Stable and Samantha are next to each other
-    
-    # Constraint 7: The volcanologist studying the Submarine volcano is immediately after the scientist using the Yellow laptop.
-    submarine = nondet(solution.volcanologists)
-    assume(submarine.volcano == "submarine")
-    yellow_laptop = nondet(solution.volcanologists)
-    assume(yellow_laptop.laptop == "yellow")
-    assert submarine.id == yellow_laptop.id + 1  # Submarine is immediately after Yellow laptop
-    
-    # Constraint 8: The volcanologist monitoring a volcano with an Increasing activity level is immediately after the scientist using the Pink laptop.
-    increasing = nondet(solution.volcanologists)
-    assume(increasing.activity == "increasing")
-    pink_laptop = nondet(solution.volcanologists)
-    assume(pink_laptop.laptop == "pink")
-    assert increasing.id == pink_laptop.id + 1  # Increasing is immediately after Pink laptop
-    
-    # Constraint 9: Emily is immediately after the volcanologist who is using the Purple laptop.
-    emily = nondet(solution.volcanologists)
-    assume(emily.name == "emily")
-    purple_laptop = nondet(solution.volcanologists)
-    assume(purple_laptop.laptop == "purple")
-    assert emily.id == purple_laptop.id + 1  # Emily is immediately after the Purple laptop holder
+    # The volcanologist monitoring a volcano with a Very high activity level is in the second position.
+    very_high_volcanologist = nondet(solution.volcanologists)
+    assume(very_high_volcanologist.activity == "veryhigh")
+    assert immediatelyBefore(solution.volcanologists[1], very_high_volcanologist)
 
-    # Constraint 10: Lauren is immediately before Emily.
-    assert emily.id == lauren.id + 1  # Emily is right after Lauren
+    # The scientist studying the Supervolcano is in the third position.
+    supervolcano_volcanologist = nondet(solution.volcanologists)
+    assume(supervolcano_volcanologist.volcano == "supervolcano")
+    assert immediatelyBefore(supervolcano_volcanologist, solution.volcanologists[2])
+
+    # The scientist who is monitoring the Lava dome volcano is immediately after the scientist studying the Supervolcano.
+    lavadome_volcanologist = nondet(solution.volcanologists)
+    assume(lavadome_volcanologist.volcano == "lavadome")
+    assert immediatelyBefore(supervolcano_volcanologist, lavadome_volcanologist)
+
+    # The volcanologist who is monitoring the Scoria cone volcano is observing a Fluctuating activity level.
+    scoriacone_volcanologist = nondet(solution.volcanologists)
+    assume(scoriacone_volcanologist.volcano == "scoriacone")
+    assume(scoriacone_volcanologist.activity == "fluctuating")
+
+    # Lauren is in the second position.
+    lauren_volcanologist = nondet(solution.volcanologists)
+    assume(lauren_volcanologist.name == "lauren")
+    assert immediatelyBefore(lauren_volcanologist, solution.volcanologists[1])
+
+    # The scientist observing a volcano with a Stable activity level is next to Samantha.
+    stable_volcanologist = nondet(solution.volcanologists)
+    assume(stable_volcanologist.activity == "stable")
+    samantha_volcanologist = nondet(solution.volcanologists)
+    assume(samantha_volcanologist.name == "samantha")
+    assert immediatelyBefore(stable_volcanologist, samantha_volcanologist) or immediatelyBefore(samantha_volcanologist, stable_volcanologist)
+
+    # The volcanologist studying the Submarine volcano is immediately after the scientist using the Yellow laptop.
+    yellow_laptop_volcanologist = nondet(solution.volcanists)
+    assume(yellow_laptop_volcanologist.laptop == "yellow")
+    submarine_volcanologist = nondet(solution.volcanologists)
+    assume(submarine_volcanologist.volcano == "submarine")
+    assert immediatelyBefore(yellow_laptop_volcanologist, submarine_volcanologist)
+
+    # The volcanologist monitoring a volcano with an Increasing activity level is immediately after the scientist using the Pink laptop.
+    pink_laptop_volcanologist = nondet(solution.volcanists)
+    assume(pink_laptop_volcanologist.laptop == "pink")
+    increasing_volcanologist = nondet(solution.volcanologists)
+    assume(increasing_volcanologist.activity == "increasing")
+    assert immediatelyBefore(pink_laptop_volcanologist, increasing_volcanologist)
+
+    # Emily is immediately after the volcanologist who is using the Purple laptop.
+    purple_laptop_volcanologist = nondet(solution.volcanologists)
+    assume(purple_laptop_volcanologist.laptop == "purple")
+    emily_volcanologist = nondet(solution.volcanologists)
+    assume(emily_volcanologist.name == "emily")
+    assert immediatelyBefore(purple_laptop_volcanologist, emily_volcanologist)
+
+    # Lauren is immediately before Emily.
+    assert immediatelyBefore(lauren_volcanologist, emily_volcanologist)

@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from libcst import Module, parse_module
 
-from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureGenerator
+from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureGenerator, ClassProps, DomainProps, ListProps
 
 class TestLogicPyForgeDataStructureGenerator(TestCase):
 
@@ -44,45 +44,42 @@ one sig Fluctuating extends Activity {}
 one sig Increasing extends Activity {}
 one sig Stable extends Activity {}
 one sig Veryhigh extends Activity {}
-abstract sig Volcanologist {}
-one sig Volcanologist1 extends Volcanologist {}
-one sig Volcanologist2 extends Volcanologist {}
-one sig Volcanologist3 extends Volcanologist {}
-one sig Volcanologist4 extends Volcanologist {}
 
+sig Volcanologist {
+    laptop: one Laptop,
+    name: one Name,
+    volcano: one Volcano,
+    activity: one Activity
+}
 one sig Solution {
-    laptop: func Volcanologist -> Laptop,
-    name: func Volcanologist -> Name,
-    volcano: func Volcanologist -> Volcano,
-    activity: func Volcanologist -> Activity,
+    volcanologists: pfunc Int->Volcanologist
 }"""
         self.data_structures = LogicPyForgeDataStructureGenerator()
         source_module: Module = parse_module(self.__test_input)
         source_module.visit(self.data_structures)
 
     def test_forge_code(self) -> None:
+        print(self.data_structures.forge_code)
         self.assertEqual(self.data_structures.forge_code, self.__expected_forge_code)
     
     def test_classes(self) -> None:
         expected_classes = {
-            "Solution": [
-                "volcanologists"
-            ],
-            "Volcanologist": [
-                "laptop",
-                "name",
-                "volcano",
-                "activity"
-            ]
+            "Solution": ClassProps(isOneSig=True, fields=["volcanologists"]),
+            "Volcanologist": ClassProps(isOneSig=False, fields=["laptop", "name", "volcano", "activity"])
         }
         self.assertEqual(self.data_structures.classes, expected_classes)
     
     def test_domains(self) -> None:
         expected_domains = {
-            "Volcanologist": ("Volcanologist", ["Volcanologist1", "Volcanologist2", "Volcanologist3", "Volcanologist4"]),
-            "laptop": ("str", ["green", "pink", "purple", "yellow"]),
-            "name": ("str", ["emily", "kimberly", "lauren", "samantha"]),
-            "volcano": ("str", ["lavadome", "scoriacone", "submarine", "supervolcano"]),
-            "activity": ("str", ["fluctuating", "increasing", "stable", "veryhigh"])
+            "laptop": DomainProps(type_name="str", values=["green", "pink", "purple", "yellow"]),
+            "name": DomainProps(type_name="str", values=["emily", "kimberly", "lauren", "samantha"]),
+            "volcano": DomainProps(type_name="str", values=["lavadome", "scoriacone", "submarine", "supervolcano"]),
+            "activity": DomainProps(type_name="str", values=["fluctuating", "increasing", "stable", "veryhigh"])
         }
         self.assertEqual(self.data_structures.domains, expected_domains)
+    
+    def test_list_fields(self) -> None:
+        expected_list_fields = {
+            "volcanologists": ListProps(type_name="Volcanologist", length=4)
+        }
+        self.assertEqual(self.data_structures.list_fields, expected_list_fields)
