@@ -35,7 +35,7 @@ class LogicPyForgeHarnessGenerator(ABC):
 
         data_structures = LogicPyForgeDataStructureGenerator()
         metadata.visit(data_structures)
-        constraints = LogicPyForgeConstraintGenerator()
+        constraints = LogicPyForgeConstraintGenerator(data_structures.get_metadata())
         metadata.visit(constraints)
 
         solution_type: str = ""

@@ -30,6 +30,41 @@ class ListProps:
     type_name: str
     length: int
 
+
+class LogicPyForgeDataStructureMetadata:
+    """
+    Class to hold metadata about Logic.py data structures for use in constraint generation.
+    """
+
+    def __init__(self, domains: dict[str, DomainProps], classes: dict[str, ClassProps], list_fields: dict[str, ListProps]):
+        self.domains = domains
+        self.classes = classes
+        self.list_fields = list_fields
+
+    def get_field_type(self, field_name: str) -> str:
+        """
+        Get the type name of a field.
+        """
+        if field_name in self.list_fields:
+            return self.list_fields[field_name].type_name
+        elif field_name in self.domains:
+            return self.domains[field_name].type_name
+        else:
+            raise ValueError(f"Field {field_name} not found in metadata.")
+    
+    def get_class_field_type(self, class_name: str, field_name: str) -> str:
+        """
+        Given an attribute access expression (e.g., solution.volcanologist),
+        return the type name of the field being accessed.
+        """
+        if class_name in self.classes:
+            if field_name in self.classes[class_name].fields:
+                return self.get_field_type(field_name)
+            else:
+                raise ValueError(f"Field {field_name} not found in class {class_name}.")
+        else:
+            raise ValueError(f"Class {class_name} not found in metadata.")
+
 class LogicPyForgeDataStructureGenerator(CSTVisitor):
     """
     Visits the CST to extract Logic.py data structures and prepares them for Forge code generation.
@@ -47,7 +82,7 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
     def visit_ClassDef(self, node: ClassDef):
         class_name = node.name.value
         self.current_class = class_name
-        self.classes[class_name] = ClassProps(isOneSig=(class_name == "Solution"), fields=[])
+        self.classes[class_name] = ClassProps(isOneSig=(class_name == "Solution"), fields=[]) # NOTE: Class name is assumed to be "Solution" for the main solution class
     
     def visit_AnnAssign(self, node: AnnAssign):
         field_name = getattr(node.target, "value", None)
@@ -161,3 +196,14 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
             forge_lines.append("}")
         
         self.forge_code = "\n".join(forge_lines)
+    
+    def get_metadata(self) -> LogicPyForgeDataStructureMetadata:
+        """
+        Return the collected metadata about Logic.py data structures.
+        """
+
+        return LogicPyForgeDataStructureMetadata(
+            domains=self.domains,
+            classes=self.classes,
+            list_fields=self.list_fields
+        )

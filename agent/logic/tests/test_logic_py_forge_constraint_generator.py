@@ -2,13 +2,40 @@ from unittest import TestCase
 
 from libcst import Module, parse_module
 
-from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator, ForgeExpr, ForgeConstraint, ForgePredicateCall, ForgeAttributeAccess, ForgeFunctionLookup, ForgeOperator, ForgeSymbol
+from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator
+from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureMetadata, DomainProps, ListProps, ClassProps
 
-def visit_module(module) -> LogicPyForgeConstraintGenerator:
+
+# MOCK VARIABLES
+
+MOCK_DOMAINS = {
+    "laptop": DomainProps(type_name="str", values=["green", "pink", "purple", "yellow"]),
+    "name": DomainProps(type_name="str", values=["emily", "kimberly", "lauren", "samantha"]),
+    "volcano": DomainProps(type_name="str", values=["lavadome", "scoriacone", "submarine", "supervolcano"]),
+    "activity": DomainProps(type_name="str", values=["fluctuating", "increasing", "stable", "veryhigh"])
+}
+
+MOCK_CLASSES = {
+    "Solution": ClassProps(isOneSig=True, fields=["volcanologists"]),
+    "Volcanologist": ClassProps(isOneSig=False, fields=["laptop", "name", "volcano", "activity"])
+}
+
+MOCK_LIST_FIELDS = {
+    "volcanologists": ListProps(type_name="Volcanologist", length=4)
+}
+
+MOCK_DS_METADATA = LogicPyForgeDataStructureMetadata(
+    domains=MOCK_DOMAINS,
+    classes=MOCK_CLASSES,
+    list_fields=MOCK_LIST_FIELDS
+)
+
+
+def visit_module(module, ds_metadata=MOCK_DS_METADATA) -> LogicPyForgeConstraintGenerator:
     """
     Helper to visit a module and collect constraints.
     """
-    constraints = LogicPyForgeConstraintGenerator()
+    constraints = LogicPyForgeConstraintGenerator(ds_metadata)
     source_module: Module = parse_module(module)
     source_module.visit(constraints)
     return constraints

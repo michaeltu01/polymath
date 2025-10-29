@@ -17,15 +17,14 @@ from libcst.display import dump
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias
+from collections import defaultdict
 
-from pydantic import InstanceOf
+from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureMetadata
 
 class ForgeOperator(Enum):
     EQUALS = 1
     OR = 2
 
-# FIXME: Rename ForgeConstraint to ForgeExpr
 class ForgeExpr:
     pass
 
@@ -42,12 +41,12 @@ class ForgePredicateCall(ForgeExpr):
 
 @dataclass
 class ForgeFunctionLookup(ForgeExpr):
-    function: str
+    function: str # FIXME: Should be ForgeExpr?
     key: str
 
 @dataclass
 class ForgeAttributeAccess(ForgeExpr):
-    object: ForgeExpr
+    object: ForgeExpr # why does this need to be a ForgeExpr? can't this just be a symbol?
     attr_name: ForgeSymbol
 
 @dataclass
@@ -59,12 +58,14 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
     Visits the CST to extract Logic.py constraints and prepares them for Forge code generation.
     """
     # NOTE: Potentially, I need some metadata about the puzzle's data structures
-    def __init__(self):
+    def __init__(self, data_structure_metadata: LogicPyForgeDataStructureMetadata):
         super().__init__()
         self.constraints: list[ForgeExpr] = [] # List of all constraints found maintained in the order of the definition in Forge
+        self.types_to_vars: defaultdict[str, list[str]] = defaultdict(list) # type_name -> nondet var name
         self.vars_to_constraints: dict[str, list[ForgeExpr]] = {} # var_name (can be nondet or regular) -> list of asserts and assumes
         self.forge_code = ""
         self.__cur_var = ""
+        self.data_structure_metadata = data_structure_metadata
 
     # TODO: Implement visitor methods for assertions, expressions, etc.
 
@@ -87,20 +88,42 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                         if value and isinstance(value, Call) and isinstance(value.func, Name) and value.func.value == "nondet":
                             # It's a nondet assignment
                             nondet_var_name = targets[0].target.value
+                            if not isinstance(nondet_var_name, str): 
+                                raise ValueError("Nondet variable name is not a string.")
                             self.__cur_var = nondet_var_name
-                            # Initialize constraints list for this variable
+                            _, nondet_source = self.parse_Call(value)
+
+                            # Get the source field being assigned to the nondet variable
+                            nondet_source_expr = self._expr_to_forge(nondet_source[0]) # e.g., "solution.volcanologist"
+                            if not isinstance(nondet_source_expr, ForgeAttributeAccess):
+                                raise ValueError("Nondet source expression is not an attribute access.")
+
+                            # Add nondet var to class metadata
+                            type_name = self.get_ds_class_field_type(nondet_source_expr)
+                            self.types_to_vars[type_name].append(nondet_var_name)
+
                             if nondet_var_name not in self.vars_to_constraints:
                                 self.vars_to_constraints[nondet_var_name] = []
                         else:
                             # Handle a generic assignment
                             var_name = targets[0].target.value
+                            if not isinstance(var_name, str): 
+                                raise ValueError("Assigned variable name is not a string.")
                             self.__cur_var = var_name
+
                             if var_name not in self.vars_to_constraints:
                                 self.vars_to_constraints[var_name] = []
 
                             # Evaluate the RHS
                             if value and isinstance(value, Subscript):
                                 function, index = self.parse_Subscript(value)
+
+                                # Retrieve the variable's type
+                                if isinstance(function, ForgeAttributeAccess):
+                                    type_name = self.get_ds_class_field_type(function)
+                                    self.types_to_vars[type_name].append(var_name)
+                                else:
+                                    raise ValueError("Assigned function is not an attribute access.")
                                 rhs = ForgeFunctionLookup(function=self._forge_constraint_to_str(function), key=str(index))
 
                             constraint = ForgeConstraint(operator=ForgeOperator.EQUALS, lhs=ForgeSymbol(name=var_name), rhs=rhs)
@@ -181,11 +204,14 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                 subscript = arg.value
                 # Indexing into list expression
                 if isinstance(subscript, Subscript) and subscript.slice:
-                    function, index = self.parse_Subscript(subscript)
-                    params.append(f"{self._forge_constraint_to_str(function).capitalize()}[{index}]")
+                    forge_function, index = self.parse_Subscript(subscript)
+                    params.append(f"{self._forge_constraint_to_str(forge_function).capitalize()}[{index}]")
                 else:
                     params.append(subscript.value)
             return "immediatelyBefore", params
+        
+        elif isinstance(func, Name) and func.value == "nondet":
+            return "nondet", [arg.value for arg in node.args]
         return "", []
 
     def _expr_to_forge(self, expr) -> ForgeExpr:
@@ -203,7 +229,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         elif isinstance(expr, str):
             return ForgeSymbol(name=str.replace(expr.lower(), " ", "_"))
         else:
-            raise ValueError(f"expr_to_forge: Unhandled expression type: {type(expr)}")
+            raise ValueError(f"expr_to_forge: Unhandled expression type ({type(expr)}) for expression: {dump(expr)}")
 
     def _forge_constraint_to_str(self, expr: ForgeExpr) -> str:
         """
@@ -244,9 +270,25 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         - Build the `some` block with all the nondet variable names (retrieved from the keys in `nondet_vars_to_constraints`)
         - Convert all the constraints into Forge constraints
         """
-        lines.append(f"    some {', '.join(self.vars_to_constraints.keys())}: Volcanologist | {{") # FIXME: Replace 'Volcanologist' with appropriate type
+
+        # Build existence variables
+        quantifiers = []
+        for type_name, nondets in self.types_to_vars.items():
+            quantifiers.append(f"{', '.join(nondets)}: {type_name.capitalize()}")
+        quantifierStr = ", ".join(quantifiers)
+        
+        lines.append(f"    some {quantifierStr} | {{") # FIXME: Replace 'Volcanologist' with appropriate type
         for constraint in self.constraints:
             lines.append(f"        {self._forge_constraint_to_str(constraint)}")
         lines.append("    }")
         lines.append("}")
         self.forge_code = "\n".join(lines)
+
+    def get_ds_field_type(self, field_name: str) -> str:
+        return self.data_structure_metadata.get_field_type(field_name)
+    
+    def get_ds_class_field_type(self, expr: ForgeAttributeAccess) -> str:
+        class_name = self._forge_constraint_to_str(expr.object)
+        field_name = self._forge_constraint_to_str(expr.attr_name)
+
+        return self.data_structure_metadata.get_class_field_type(class_name, field_name)
