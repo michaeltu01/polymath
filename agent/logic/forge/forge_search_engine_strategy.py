@@ -189,6 +189,7 @@ class ForgeSearchEngineStrategy(EngineStrategy):
             format if the invocation was succesful.
         """
         # TODO: Parse Forge output
+        # Get XML output from Forge API
         ...
     
     @property

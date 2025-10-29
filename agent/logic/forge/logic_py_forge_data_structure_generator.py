@@ -41,7 +41,7 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
         self.classes: dict[str, ClassProps] = {} # class_name -> ClassProps
         self.list_fields: dict[str, ListProps] = {} # field -> ListProps
         self.forge_code: str = ""
-        self.unique_fields: set = set()
+        self.unique_fields: set[str] = set()
 
     # TODO: Implement visit_ClassDef and other relevant visitor methods
     def visit_ClassDef(self, node: ClassDef):
@@ -51,6 +51,10 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
     
     def visit_AnnAssign(self, node: AnnAssign):
         field_name = getattr(node.target, "value", None)
+        if field_name and isinstance(field_name, str):
+            field_name = str.replace(field_name, " ", "_") # convert spaces into underscores
+        else:
+            raise ValueError("Field name is not type `str`")
 
         node = node.annotation
 
@@ -83,7 +87,8 @@ class LogicPyForgeDataStructureGenerator(CSTVisitor):
                     elIndex: Index = el.slice
                     v = elIndex.value
                     if isinstance(v, SimpleString):
-                        domain_values.append(v.evaluated_value)
+                        ev = str.replace(v.evaluated_value, " ", "_")
+                        domain_values.append(ev)
                     elif isinstance(v, Call) and isinstance(v.func, Name) and v.func.value == "range":
                         # Expand simple range(start, stop)
                         args = v.args

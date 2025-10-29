@@ -4,15 +4,21 @@ from libcst import Module, parse_module
 
 from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator, ForgeExpr, ForgeConstraint, ForgePredicateCall, ForgeAttributeAccess, ForgeFunctionLookup, ForgeOperator, ForgeSymbol
 
+def visit_module(module) -> LogicPyForgeConstraintGenerator:
+    """
+    Helper to visit a module and collect constraints.
+    """
+    constraints = LogicPyForgeConstraintGenerator()
+    source_module: Module = parse_module(module)
+    source_module.visit(constraints)
+    return constraints
+
+
 class TestLogicPyForgeConstraintGenerator(TestCase):
     def __init__(self, methodName="runTest") -> None:
         super().__init__(methodName)
         self.maxDiff = None
-        
-        # Parse the example Python program
-        self.visit_module()
-    
-    def visit_module(self) -> None:
+
         self.__test_input = """
 def validate(solution: Solution) -> None:
     # The volcanologist monitoring a volcano with a Very high activity level is in the second position.
@@ -33,7 +39,8 @@ def validate(solution: Solution) -> None:
     assert immediatelyBefore(stable_volcanologist, samantha_volcanologist) or immediatelyBefore(samantha_volcanologist, stable_volcanologist)
 """
 
-        self.__expected_forge_code = """pred solution {
+    def test_forge_code(self) -> None:
+        expected_forge_code = """pred solution {
     some very_high_volcanologist, supervolcano_volcanologist, stable_volcanologist, samantha_volcanologist: Volcanologist | {
         very_high_volcanologist.activity = Veryhigh
         immediatelyBefore[Solution.volcanologists[1], very_high_volcanologist]
@@ -44,13 +51,9 @@ def validate(solution: Solution) -> None:
         immediatelyBefore[stable_volcanologist, samantha_volcanologist] or immediatelyBefore[samantha_volcanologist, stable_volcanologist]
     }
 }"""
-        self.constraints = LogicPyForgeConstraintGenerator()
-        source_module: Module = parse_module(self.__test_input)
-        source_module.visit(self.constraints)
-
-    def test_forge_code(self) -> None:
-        # print(self.constraints.forge_code)
-        self.assertEqual(self.constraints.forge_code, self.__expected_forge_code)
+        self.constraints = visit_module(self.__test_input)
+        print(self.constraints.forge_code)
+        self.assertEqual(self.constraints.forge_code, expected_forge_code)
 
     def test_constraint_extraction(self) -> None:
         """
@@ -62,3 +65,39 @@ def validate(solution: Solution) -> None:
         }
         """
         # print(self.constraints.nondet_vars_to_constraints)
+
+class TestLogicPyForgeConstraintGeneratorDuplicate(TestCase):
+    def __init__(self, methodName="runTest") -> None:
+        super().__init__(methodName)
+        self.maxDiff = None
+
+    def test_duplicate_constraints(self) -> None:
+        duplicate_constraint_clue = """def validate(solution: Solution) -> None:
+    # The volcanologist who is monitoring the Scoria cone volcano is observing a Fluctuating activity level.
+    scoriacone_scientist = nondet(solution.volcanologists)
+    assume(scoriacone_scientist.volcano == "scoriacone")
+    assert scoriacone_scientist.activity == "fluctuating\""""
+        constraints = visit_module(duplicate_constraint_clue)
+        expected_forge_code = """pred solution {
+    some scoriacone_scientist: Volcanologist | {
+        scoriacone_scientist.volcano = Scoriacone
+        scoriacone_scientist.activity = Fluctuating
+    }
+}"""
+        self.assertEqual(constraints.forge_code, expected_forge_code)
+
+class TestLogicPyForgeConstraintGeneratorRegularAssignment(TestCase):
+    def __init__(self, methodName="runTest") -> None:
+        super().__init__(methodName)
+        self.maxDiff = None
+
+    def test_regular_assignment(self) -> None:
+        regular_assignment = """def validate(solution: Solution) -> None:
+    supervolcano_scientist = solution.volcanologists[2]"""
+        constraints = visit_module(regular_assignment)
+        expected_forge_code = """pred solution {
+    some supervolcano_scientist: Volcanologist | {
+        supervolcano_scientist = Solution.volcanologists[2]
+    }
+}"""
+        self.assertEqual(constraints.forge_code, expected_forge_code)

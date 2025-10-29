@@ -62,8 +62,8 @@ class LogicPyForgeHarnessGenerator(ABC):
             
             # Unique one-to-one constraints
             for unique_field in data_structures.unique_fields:
-                some_var_name = unique_field[0]
-                unique_field_constraint = f"    all {some_var_name}: {unique_field.capitalize()} | some {unique_field}.{some_var_name}"
+                some_var_name = unique_field[0].lower()
+                unique_field_constraint = f"    all {some_var_name}: {unique_field.capitalize()} | some {unique_field.lower()}.{some_var_name}"
                 lines.append(unique_field_constraint)
 
             for list_field in data_structures.list_fields.keys():

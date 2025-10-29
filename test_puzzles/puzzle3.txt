@@ -1,0 +1,14 @@
+There are 5 houses, numbered 1 to 5 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
+ - Each person has a unique name: `Arnold`, `Peter`, `Bob`, `Alice`, `Eric`
+ - People use unique phone models: `iphone 13`, `oneplus 9`, `samsung galaxy s21`, `google pixel 6`, `huawei p50`
+
+## Clues:
+1. Peter is in the fourth house.
+2. The person who uses a OnePlus 9 is in the second house.
+3. The person who uses a Huawei P50 and the person who uses a OnePlus 9 are next to each other.
+4. There is one house between Alice and Eric.
+5. Eric is in the third house.
+6. Arnold is somewhere to the left of the person who uses a Samsung Galaxy S21.
+7. Alice is somewhere to the left of the person who uses a Google Pixel 6.
+8. There is one house between Alice and the person who uses a Google Pixel 6.
+9. The person who uses a Samsung Galaxy S21 is not in the fourth house.

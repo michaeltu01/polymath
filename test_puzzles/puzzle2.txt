@@ -1,0 +1,8 @@
+There are 2 houses, numbered 1 to 2 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
+ - Each person has a unique name: `Arnold`, `Eric`
+ - Each person lives in a unique style of house: `colonial`, `victorian`
+ - People use unique phone models: `iphone 13`, `samsung galaxy s21`
+
+## Clues:
+1. Eric is somewhere to the left of the person who uses an iPhone 13.
+2. The person who uses a Samsung Galaxy S21 is the person residing in a Victorian house.
