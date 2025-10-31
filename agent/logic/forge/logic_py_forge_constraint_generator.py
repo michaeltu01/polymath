@@ -57,7 +57,6 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
     """
     Visits the CST to extract Logic.py constraints and prepares them for Forge code generation.
     """
-    # NOTE: Potentially, I need some metadata about the puzzle's data structures
     def __init__(self, data_structure_metadata: LogicPyForgeDataStructureMetadata):
         super().__init__()
         self.constraints: list[ForgeExpr] = [] # List of all constraints found maintained in the order of the definition in Forge
@@ -109,7 +108,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                             var_name = targets[0].target.value
                             if not isinstance(var_name, str): 
                                 raise ValueError("Assigned variable name is not a string.")
-                            self.__cur_var = var_name
+                            self.__cur_var = var_name # FIXME: Remove the assumption that a current variable is always set (via a nondet or regular assignment)
 
                             if var_name not in self.vars_to_constraints:
                                 self.vars_to_constraints[var_name] = []
@@ -290,7 +289,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
             quantifiers.append(f"{', '.join(nondets)}: {type_name.capitalize()}")
         quantifierStr = ", ".join(quantifiers)
         
-        lines.append(f"    some {quantifierStr} | {{") # FIXME: Replace 'Volcanologist' with appropriate type
+        lines.append(f"    some {quantifierStr} | {{")
         for constraint in self.constraints:
             lines.append(f"        {self._forge_constraint_to_str(constraint)}")
         lines.append("    }")

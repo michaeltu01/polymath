@@ -3,6 +3,7 @@ from unittest import TestCase
 from libcst import Module, parse_module
 
 from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator
+from agent.logic.forge.logic_py_forge_constraint_generator_migrate import LogicPyForgeConstraintGeneratorMigrate
 from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureMetadata, DomainProps, ListProps, ClassProps
 
 
@@ -30,12 +31,13 @@ MOCK_DS_METADATA = LogicPyForgeDataStructureMetadata(
     list_fields=MOCK_LIST_FIELDS
 )
 
+CONSTRAINT_GENERATOR = LogicPyForgeConstraintGenerator
 
-def visit_module(module, ds_metadata=MOCK_DS_METADATA) -> LogicPyForgeConstraintGenerator:
+def visit_module(module, ds_metadata=MOCK_DS_METADATA) -> CONSTRAINT_GENERATOR:
     """
     Helper to visit a module and collect constraints.
     """
-    constraints = LogicPyForgeConstraintGenerator(ds_metadata)
+    constraints = CONSTRAINT_GENERATOR(ds_metadata)
     source_module: Module = parse_module(module)
     source_module.visit(constraints)
     return constraints
@@ -127,4 +129,18 @@ class TestLogicPyForgeConstraintGeneratorRegularAssignment(TestCase):
         supervolcano_scientist = Solution.volcanologists[2]
     }
 }"""
+        self.assertEqual(constraints.forge_code, expected_forge_code)
+
+class TestLogicPyForgeConstraintGeneratorSubscript(TestCase):
+    def __init__(self, methodName="runTest") -> None:
+        super().__init__(methodName)
+        self.maxDiff = None
+
+    def test_subscript_parsing(self) -> None:
+        subscript_assignment = """def validate(solution: Solution) -> None:
+        assert solution.volcanologists[2].Volcano == \"supervolcano\""""
+        constraints = visit_module(subscript_assignment)
+        expected_forge_code = """pred solution {
+        Solution.volcanologists[2].volcano = Supervolcano
+    }"""
         self.assertEqual(constraints.forge_code, expected_forge_code)
