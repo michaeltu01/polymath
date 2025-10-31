@@ -71,6 +71,8 @@ class LogicPyForgeHarnessGenerator(ABC):
                 list_type = data_structures.list_fields[list_field].type_name
                 list_field_constraint = f"    all {some_var_name}: {list_type.capitalize()} | some {list_field}.{some_var_name}"
                 lines.append(list_field_constraint)
+                sequence_constraint = f"    isSeqOf[{SOLUTION_CLASS_NAME}.{list_field}, {list_type.capitalize()}]" # FIXME: Modify list_field to be able to access the class name directly
+                lines.append(sequence_constraint)
             
             lines.append("}")
             wellformed_code = "\n".join(lines)
@@ -89,8 +91,12 @@ class LogicPyForgeHarnessGenerator(ABC):
 
 {_wellformed()}
 
-pred immediatelyBefore[va, vb: {solution_type if solution_type else "MISSING_TYPE"}] {{
-    {SOLUTION_CLASS_NAME}.{solution_field if solution_field else "MISSING_FIELD"}[add[({SOLUTION_CLASS_NAME}.{solution_field if solution_field else "MISSING_FIELD"}).va, 1]] = vb
+pred immediatelyBefore[a, b: {solution_type if solution_type else "MISSING_TYPE"}] {{
+    {SOLUTION_CLASS_NAME}.{solution_field if solution_field else "MISSING_FIELD"}[add[({SOLUTION_CLASS_NAME}.{solution_field if solution_field else "MISSING_FIELD"}).a, 1]] = b
+}}
+
+pred somewhereBefore[a, b: {solution_type if solution_type else "MISSING_TYPE"}] {{
+    {SOLUTION_CLASS_NAME}.{solution_field if solution_field else "MISSING_FIELD"}.a < {SOLUTION_CLASS_NAME}.{solution_field if solution_field else "MISSING_FIELD"}.b
 }}
 
 

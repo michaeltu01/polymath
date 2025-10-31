@@ -192,7 +192,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         slice = node.slice
         if slice and isinstance(slice[0].slice, Index):
             index = slice[0].slice.value.value
-            return function, index # FIXME: Return a ForgeFunctionLookup here, instead
+            return function, index
         else:
             raise ValueError("Slice contains non-index values. You need to add a way to handle these values.")
 
@@ -209,9 +209,19 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                 else:
                     params.append(subscript.value)
             return "immediatelyBefore", params
-        
         elif isinstance(func, Name) and func.value == "nondet":
             return "nondet", [arg.value for arg in node.args]
+        elif isinstance(func, Name) and func.value == "somewhereBefore":
+            params: list[str] = []
+            for arg in node.args:
+                subscript = arg.value
+                # Indexing into list expression
+                if isinstance(subscript, Subscript) and subscript.slice:
+                    forge_function, index = self.parse_Subscript(subscript)
+                    params.append(f"{self._forge_constraint_to_str(forge_function).capitalize()}[{index}]")
+                else:
+                    params.append(subscript.value)
+            return "immediatelyBefore", params
         return "", []
 
     def _expr_to_forge(self, expr) -> ForgeExpr:
@@ -228,6 +238,9 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
             return ForgeSymbol(name=str.replace(expr.evaluated_value.capitalize(), " ", "_"))
         elif isinstance(expr, str):
             return ForgeSymbol(name=str.replace(expr.lower(), " ", "_"))
+        elif isinstance(expr, Subscript):
+            function, index = self.parse_Subscript(expr)
+            return ForgeFunctionLookup(function=self._forge_constraint_to_str(function), key=str(index))
         else:
             raise ValueError(f"expr_to_forge: Unhandled expression type ({type(expr)}) for expression: {dump(expr)}")
 

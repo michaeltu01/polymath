@@ -22,9 +22,9 @@ _CONSTRAINTS_MESSAGE: str = """Now you must generate a validation function which
 
 * Express your constraints in Python, but do not use any loops or comprehensions.
 * Do not generate constraints that are already enforced by the data type you selected, e.g. if a data type is marked as `Unique` you do not need to generate an explicit constraint for this anymore.
-* Be consistent! If a class has an explicit `id` or similar field, always use that field when expressing constraints, not the element's location in a container. You cannot assume that its order in a container matches this field, since that order may be non-deterministic to your solver tool.
 * Also, be consistent with the data structure! Whatever the solution data structure name is should match how it is referenced in the constraints.
 * To find elements in a collection with specific characteristics, you can use free variables and assumptions instead. Here are a few examples:
+* If you need to assert the position of an element, you can directly index into the solution's list fields, e.g. `solution.people[0]` gives you the first person in the `people` list of the `solution` object.
 
 Puzzle condition: "Bob is the person who owns a dog"
 Constraint:
@@ -54,6 +54,17 @@ assume(ivory_house.color == ivory)
 green_house = nondet(solution.house)
 assume(green_house.color == green)
 assert immediatelyBefore(ivory_house, green_house)
+```
+
+* Use `somewhereBefore` to express non-immediate ordering relations, e.g. `somewhereBefore(a, b)` asserts that `a` is somewhere before `b` (i.e. `Volcanologist1` is somewhere before `Volcanologist2`). Here's an example:
+Puzzle condition: "The green house is somewhere to the right of the ivory house"
+Constraint:
+```
+ivory_house = nondet(solution.house)
+assume(ivory_house.color == ivory)
+green_house = nondet(solution.house)
+assume(green_house.color == green)
+assert somewhereBefore(ivory_house, green_house)
 ```
 
 The validation function signature must look as follows:
