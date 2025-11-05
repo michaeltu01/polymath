@@ -36,19 +36,20 @@ class ForgeConstraint(ForgeExpr):
 
 @dataclass
 class ForgePredicateCall(ForgeExpr):
-    predicate: str
-    params: list[str]
+    predicate: ForgeSymbol
+    params: list[ForgeExpr]
 
 @dataclass
 class ForgeFunctionLookup(ForgeExpr):
-    function: str # FIXME: Should be ForgeExpr?
+    function: ForgeExpr
     key: str
 
 @dataclass
 class ForgeAttributeAccess(ForgeExpr):
-    object: ForgeExpr # why does this need to be a ForgeExpr? can't this just be a symbol?
+    object: ForgeExpr # This needs to be a ForgeExpr (and not just a ForgeSymbol) because of this case: Solution.volcanologists.Volcano = Supervolcano
     attr_name: ForgeSymbol
 
+# NOTE: Potentially, an issue that the ForgeSymbol represents both Python symbols and strings?
 @dataclass
 class ForgeSymbol(ForgeExpr):
     name: str
@@ -65,6 +66,8 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         self.forge_code = ""
         self.__cur_var = ""
         self.data_structure_metadata = data_structure_metadata
+
+        self._expr_stack = []
 
     # TODO: Implement visitor methods for assertions, expressions, etc.
 
@@ -123,7 +126,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                                     self.types_to_vars[type_name].append(var_name)
                                 else:
                                     raise ValueError("Assigned function is not an attribute access.")
-                                rhs = ForgeFunctionLookup(function=self._forge_constraint_to_str(function), key=str(index))
+                                rhs = ForgeFunctionLookup(function=function, key=str(index))
 
                             constraint = ForgeConstraint(operator=ForgeOperator.EQUALS, lhs=ForgeSymbol(name=var_name), rhs=rhs)
                             self.constraints.append(constraint)
@@ -220,7 +223,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
                     params.append(f"{self._forge_constraint_to_str(forge_function).capitalize()}[{index}]")
                 else:
                     params.append(subscript.value)
-            return "immediatelyBefore", params
+            return "somewhereBefore", params
         return "", []
 
     def _expr_to_forge(self, expr) -> ForgeExpr:
@@ -239,7 +242,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
             return ForgeSymbol(name=str.replace(expr.lower(), " ", "_"))
         elif isinstance(expr, Subscript):
             function, index = self.parse_Subscript(expr)
-            return ForgeFunctionLookup(function=self._forge_constraint_to_str(function), key=str(index))
+            return ForgeFunctionLookup(function=function, key=str(index))
         else:
             raise ValueError(f"expr_to_forge: Unhandled expression type ({type(expr)}) for expression: {dump(expr)}")
 
@@ -260,7 +263,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
             case ForgePredicateCall(predicate, params):
                 return f"{predicate}[{', '.join(params)}]"
             case ForgeFunctionLookup(function, key):
-                return f"{function}[{key}]"
+                return f"{self._forge_constraint_to_str(function)}[{key}]"
             case ForgeAttributeAccess(obj, a_n):
                 return f"{self._forge_constraint_to_str(obj)}.{self._forge_constraint_to_str(a_n)}"
             case ForgeSymbol(n):
