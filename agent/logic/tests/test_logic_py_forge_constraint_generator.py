@@ -3,7 +3,6 @@ from unittest import TestCase
 from libcst import Module, parse_module
 
 from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator
-from agent.logic.forge.logic_py_forge_constraint_generator_migrate import LogicPyForgeConstraintGeneratorMigrate
 from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureMetadata, DomainProps, ListProps, ClassProps
 
 
@@ -31,13 +30,11 @@ MOCK_DS_METADATA = LogicPyForgeDataStructureMetadata(
     list_fields=MOCK_LIST_FIELDS
 )
 
-CONSTRAINT_GENERATOR = LogicPyForgeConstraintGeneratorMigrate
-
-def visit_module(module, ds_metadata=MOCK_DS_METADATA) -> CONSTRAINT_GENERATOR:
+def visit_module(module, ds_metadata=MOCK_DS_METADATA) -> LogicPyForgeConstraintGenerator:
     """
     Helper to visit a module and collect constraints.
     """
-    constraints = CONSTRAINT_GENERATOR(ds_metadata)
+    constraints = LogicPyForgeConstraintGenerator(ds_metadata)
     source_module: Module = parse_module(module)
     source_module.visit(constraints)
     return constraints
