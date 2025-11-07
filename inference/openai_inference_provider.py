@@ -135,13 +135,13 @@ class OpenAIChatCompletion(ChatCompletion):
             messages = self.__convert_messages(conversation)
             kwargs: dict = {
                 "model": self.__model_name,
-                "messages": messages,
+                "messages": messages, # this is the conversation context
                 "temperature": self.__temperature,
             }
             if self.__max_gen_tokens and self.__max_gen_tokens > 0:
                 kwargs["max_tokens"] = self.__max_gen_tokens
 
-            resp = await self.__client.chat.completions.create(**kwargs)
+            resp = await self.__client.chat.completions.create(**kwargs) # creates the chat completion with conversation context
 
             if not resp.choices:
                 # Defensive: treat as stopped with empty output

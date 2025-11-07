@@ -11,14 +11,16 @@ TODO:
 """
 
 from __future__ import annotations
+import heapq
 from typing import Optional # lazy evaluation of type annotations
 
-from libcst import Assign, BooleanOperation, CSTVisitor, Call, Expr, Index, MetadataWrapper, Module, FunctionDef, Assert, Comparison, Name, Attribute, Or, SimpleString, Subscript
+from libcst import Assign, BooleanOperation, CSTVisitor, Call, EmptyLine, Expr, Index, MetadataWrapper, Module, FunctionDef, Assert, Comparison, Name, Attribute, Or, SimpleString, Subscript
 from libcst.display import dump
+from libcst.metadata import PositionProvider
 
 from dataclasses import dataclass
 from enum import Enum
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 
 from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureMetadata
 
@@ -56,25 +58,91 @@ class ForgeSymbol(ForgeExpr):
     name: str
 
 class LogicPyForgeConstraintGenerator(CSTVisitor):
+    METADATA_DEPENDENCIES = (PositionProvider,)
+
     def __init__(self, data_structure_metadata: LogicPyForgeDataStructureMetadata):
         super().__init__()
+
+        # Variables to build Forge constraints
         self.constraints: list[ForgeExpr] = [] # List of all constraints found maintained in the order of the definition in Forge
         self.types_to_vars: defaultdict[str, list[str]] = defaultdict(list) # type_name -> nondet var name
         self.vars_to_constraints: dict[str, list[ForgeExpr]] = {} # var_name (can be nondet or regular) -> list of asserts and assumes
-        self.forge_code = ""
         self.__cur_var = ""
+        self.forge_code = ""
+
+        # Store data structure metadata
         self.data_structure_metadata = data_structure_metadata
 
+        # Temporary stack to hold intermediate visitor outputs
+        # NOTE: This is necessary because libCST `visit_` functions only return an Optional[bool], not ForgeExpr's
         self._visitor_output_stack: list[ForgeExpr] = []
 
-    # CLASS LEVEL VISITORS
-    def visit_FunctionDef(self, node: FunctionDef):
+        # Comment tracking variables
+        self.comment_heap: list[tuple[int, str]] = [] # [(line_num, comment_text), ...]
+        self.current_comment: Optional[tuple[int, str]] = None
+        self.comment_to_constraints: OrderedDict[tuple[int, str], list[ForgeExpr]] = OrderedDict() # (line_num, comment_text) -> [constraints]
+
+        # Add an "Uncategorized" section to the OrderedDict
+        uncategorized = (0, "")
+        self.comment_to_constraints[uncategorized] = []
+
+
+    """
+
+    COMMENT HANDLING HELPERS
+
+    """
+
+    def __associate_constraint_with_comment(self, constraint: ForgeExpr, node):
+        """
+        Associate a constraint with the current comment.
+
+        Args:
+            constraint (ForgeExpr): The constraint to associate.
+            node: The CST node where the constraint was found (used for position).
+        """
+        # Get constraint position
+        position = self.get_metadata(PositionProvider, node, None)
+        if not position:
+            if self.current_comment:
+                self.comment_to_constraints[self.current_comment].append(constraint)
+            return
+        
+        constraint_line = position.start.line
+
+        # Update current comment based on constraint position
+        # Pop comments from heap if their line is before the constraint
+        while self.comment_heap and self.comment_heap[0][0] < constraint_line:
+            comment_tuple = heapq.heappop(self.comment_heap)
+            self.current_comment = comment_tuple
+
+        # Associate with current comment
+        if self.current_comment:
+            self.comment_to_constraints[self.current_comment].append(constraint)
+        else:
+            # If no current comment, associate with "Uncategorized"
+            uncategorized = (0, "")
+            self.comment_to_constraints[uncategorized].append(constraint)
+
+
+    """
+
+    CLASS LEVEL VISITORS
+
+    """
+    def visit_FunctionDef(self, node: FunctionDef) -> Optional[bool]:
         # Only visit function called "validate"
         if node.name.value == "validate":
             node.body.visit(self)
             return False
+        
 
-    # LEAF LEVEL VISITORS
+
+    """
+
+    LEAF LEVEL VISITORS
+
+    """
     def visit_Name(self, node: Name) -> Optional[bool]:
         self._visitor_output_stack.append(ForgeSymbol(name=str.replace(node.value, " ", "_")))
         return False
@@ -96,19 +164,43 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         self._visitor_output_stack.append(ForgeFunctionLookup(function=self._forge_constraint_to_str(function), key=str(index)))
         return False
     
-    # INTERMEDIATE EXPRESSION VISITORS
+    def visit_EmptyLine(self, node: EmptyLine) -> Optional[bool]:
+        if node.comment is not None:
+            line = self.get_metadata(PositionProvider, node)
+            if not line: 
+                raise ValueError("couldn't find line number for comment")
+            
+            line = line.start.line
+            comment_text = node.comment.value.strip().lstrip('#').strip()
+            comment_tuple = (line, comment_text)
+            heapq.heappush(self.comment_heap, comment_tuple)
+            
+            # Initialize in OrderedDict - insertion order preserved
+            if comment_tuple not in self.comment_to_constraints:
+                self.comment_to_constraints[comment_tuple] = []
+        return False
+
+    
+    """
+    
+    INTERMEDIATE EXPRESSION VISITORS
+
+    """
     def visit_Call(self, node: Call) -> Optional[bool]:
         """
         Visit a call and parse the function and parameters.
         """
         func = node.func
 
+        # NOTE: This is where the "assume" function is handled
         if isinstance(func, Name) and func.value == "assume":
             if len(node.args) > 1:
                 raise ValueError(f"Too many arguments ({len(node.args)}) in a Logic.py Assume expression")
             assume_expr = node.args[0]
             assume_expr.visit(self)
-            self.constraints.append(self._visitor_output_stack.pop())
+            constraint = self._visitor_output_stack.pop()
+            self.constraints.append(constraint)
+            self.__associate_constraint_with_comment(constraint, node)
             return False
 
         if isinstance(func, Name) and not (func.value == "nondet" or func.value == "immediatelyBefore" or func.value == "somewhereBefore"):
@@ -154,8 +246,20 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
 
         return False
     
-    # EXPRESSION LEVEL VISITORS
+
+
+
+
+    """
+
+    TOP LEVEL VISITORS
+
+    """
     def visit_Assign(self, node: Assign):
+        """
+        Visits Assign nodes. Corresponds to variable assignment in Python.
+        """
+
         # Retrieve the target
         targets = node.targets
         value = node.value
@@ -209,32 +313,43 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
 
             constraint = ForgeConstraint(operator=ForgeOperator.EQUALS, lhs=ForgeSymbol(name=var_name), rhs=rhs)
             self.constraints.append(constraint)
+            self.__associate_constraint_with_comment(constraint, node)
             self.vars_to_constraints[self.__cur_var].append(constraint)
         
         return False
     
-    def vist_Expr(self, node: Expr):
-        # Assume statements
-        assume_call = node.value
-        assume_arg = assume_call.args[0].value
+    # def vist_Expr(self, node: Expr):
+    #     """
+    #     Visit an expression node. Currently only handles `assume` statements in Logic.py.
+    #     """
+    #     # Assume statements
+    #     assume_call = node.value
+    #     assume_arg = assume_call.args[0].value
 
-        # Visit the assume arg
-        assume_arg.visit(self)
-        constraint = self._visitor_output_stack.pop()
-        self.constraints.append(constraint)
-        self.vars_to_constraints[self.__cur_var].append(constraint)
+    #     # Visit the assume arg
+    #     assume_arg.visit(self)
+    #     constraint = self._visitor_output_stack.pop()
+    #     self.constraints.append(constraint)
 
-        # Error checking, just in case libCST doesn't catch when a visit function isn't defined
-        if not isinstance(assume_arg, Call):
-            raise ValueError("Assume argument is not a comparison.")
+    #     print("Expr received after visiting assume Call node: ", self._forge_constraint_to_str(constraint))
+    #     self.__associate_constraint_with_comment(constraint, node)
+    #     self.vars_to_constraints[self.__cur_var].append(constraint)
+
+    #     # Error checking, just in case libCST doesn't catch when a visit function isn't defined
+    #     if not isinstance(assume_arg, Call):
+    #         raise ValueError("Assume argument is not a comparison.")
         
-        return False
+    #     return False
 
     def visit_Assert(self, node: Assert):
+        """
+        Visit an Assert node. Corresponds to `assert` statements in Logic.py.
+        """
         assert_stmt = node.test
         assert_stmt.visit(self)
         constraint = self._visitor_output_stack.pop()
         self.constraints.append(constraint)
+        self.__associate_constraint_with_comment(constraint, node)
         
         if self.__cur_var: # NOTE: is self.vars_to_constraints even necessary?
             self.vars_to_constraints[self.__cur_var].append(constraint)
@@ -244,10 +359,16 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         
         return False
 
-    # MODULE LEVEL VISITORS
+
+
+    """
+    
+    MODULE LEVEL VISITORS
+
+    """
     def leave_Module(self, original_node):
         """
-        Build the Forge code with constraints.
+        Build the Forge code equivalent of the "validate" function with the generator's class variables.
         """
         lines = []
         lines.append("pred solution {")
@@ -259,8 +380,19 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         quantifierStr = ", ".join(quantifiers)
         
         lines.append(f"    some {quantifierStr} | {{")
-        for constraint in self.constraints:
-            lines.append(f"        {self._forge_constraint_to_str(constraint)}")
+
+        # Output constraints grouped by comment
+        comment_blocks = []
+        for (_, comment), constraints in self.comment_to_constraints.items():
+            comment_block = []
+            if comment != "":
+                comment_block.append(f"        // {comment}")
+            for constraint in constraints:
+                comment_block.append(f"        {self._forge_constraint_to_str(constraint)}")
+            if comment_block:
+                comment_blocks.append("\n".join(comment_block))
+        lines.append("\n\n".join(comment_blocks)) # add newline between comment blocks
+
         lines.append("    }")
         lines.append("}")
         self.forge_code = "\n".join(lines)
@@ -273,6 +405,14 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         field_name = self._forge_constraint_to_str(expr.attr_name)
 
         return self.data_structure_metadata.get_class_field_type(class_name, field_name)
+    
+
+
+    """
+
+    PARSING HELPERS
+
+    """
 
     def _expr_to_forge(self, expr) -> ForgeExpr:
         """
@@ -325,7 +465,7 @@ class LogicPyForgeConstraintGenerator(CSTVisitor):
         
     def parse_Subscript(self, node: Subscript) -> tuple[ForgeExpr, int]:
         # Assumes that the node is a Subscript
-        function = self._expr_to_forge(node.value)
+        function = self._expr_to_forge(node.value) # FIXME: change this to a `visit()` and delete `_expr_to_forge()`
         slice = node.slice
         if slice and isinstance(slice[0].slice, Index):
             index = slice[0].slice.value.value
