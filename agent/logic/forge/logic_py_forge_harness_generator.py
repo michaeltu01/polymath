@@ -13,10 +13,12 @@ TODO:
 from abc import ABC
 from libcst import MetadataWrapper
 
+from agent.logic.forge.logic_py_forge_constraint_generator_migrate import LogicPyForgeConstraintGeneratorMigrate
 from agent.logic.forge.logic_py_forge_data_structure_generator import LogicPyForgeDataStructureGenerator
 from agent.logic.forge.logic_py_forge_constraint_generator import LogicPyForgeConstraintGenerator
 
 SOLUTION_CLASS_NAME = "Solution"
+CONSTRAINT_GENERATOR = LogicPyForgeConstraintGeneratorMigrate
 
 class LogicPyForgeHarnessGenerator(ABC):
     """
@@ -35,7 +37,7 @@ class LogicPyForgeHarnessGenerator(ABC):
 
         data_structures = LogicPyForgeDataStructureGenerator()
         metadata.visit(data_structures)
-        constraints = LogicPyForgeConstraintGenerator(data_structures.get_metadata())
+        constraints = CONSTRAINT_GENERATOR(data_structures.get_metadata())
         metadata.visit(constraints)
 
         solution_type: str = ""
@@ -81,6 +83,8 @@ class LogicPyForgeHarnessGenerator(ABC):
 
         # Combine Forge code sections
         return f"""#lang forge
+
+open util/sequences
 
 -- DATA STRUCTURES
         

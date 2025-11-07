@@ -86,7 +86,7 @@ class OpenAIChatCompletion(ChatCompletion):
         self.__model_name = model_name
         self.__max_gen_tokens = max_gen_tokens  # 0 -> use provider default
         self.__max_tokens = max_tokens  # Not directly used by OpenAI Chat API
-        self.__temperature = 1
+        self.__temperature = temperature # NOW using the passed-in temperature (which is likely the DEFAULT_TEMPERATURE)
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:

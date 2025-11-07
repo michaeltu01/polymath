@@ -273,7 +273,8 @@ class LogicPyForgeConstraintGeneratorMigrate(CSTVisitor):
                     return "Solution"
                 return n
             case _:
-                raise ValueError("expr variant not handled:", expr)
+                # raise ValueError("expr variant not handled:", expr)
+                print("expr variant not handled:", expr)
         
     def parse_Subscript(self, node: Subscript) -> tuple[ForgeExpr, int]:
         # Assumes that the node is a Subscript

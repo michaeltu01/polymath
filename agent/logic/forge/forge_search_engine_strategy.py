@@ -23,8 +23,8 @@ _CONSTRAINTS_MESSAGE: str = """Now you must generate a validation function which
 * Express your constraints in Python, but do not use any loops or comprehensions.
 * Do not generate constraints that are already enforced by the data type you selected, e.g. if a data type is marked as `Unique` you do not need to generate an explicit constraint for this anymore.
 * Also, be consistent with the data structure! Whatever the solution data structure name is should match how it is referenced in the constraints.
+* If you need to assert the position of an element in a list, you can directly index into the solution's list fields, e.g. `solution.people[0]` gives you the first person in the `people` list of the `solution` object.
 * To find elements in a collection with specific characteristics, you can use free variables and assumptions instead. Here are a few examples:
-* If you need to assert the position of an element, you can directly index into the solution's list fields, e.g. `solution.people[0]` gives you the first person in the `people` list of the `solution` object.
 
 Puzzle condition: "Bob is the person who owns a dog"
 Constraint:
@@ -110,6 +110,7 @@ Your solver tool allows you to specify the output solution type as Python classe
 * Each field can have a value constraint assigned to it, such that only these values are allowed, e.g.: `id: Domain[int, range(1, 11)]` allows id values between 1 (inclusive) and 11 (exclusive), or `name: Domain[str, \"John\", \"Jane\", \"Peter\"]` allows only the strings \"John\", \"Jane\", or \"Peter\". 
 * The `list` type allows for a second type argument specifying the size, e.g.: `list[int, 10]`.
 * Name the class containing the solution: "Solution"
+* Class names should start with an uppercase letter. Attribute names should start with a lowercase letter.
 
 Here is an example that uses these features in combination:
 ```
