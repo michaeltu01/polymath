@@ -32,7 +32,6 @@ class LogicPyForgeHarnessGenerator(ABC):
         - Combine them into a single Forge program.
         - Return the Forge code as a string.
         """
-
         data_structures = LogicPyForgeDataStructureGenerator()
         metadata.visit(data_structures)
         constraints = LogicPyForgeConstraintGenerator(data_structures.get_metadata())

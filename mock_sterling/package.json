@@ -1,0 +1,24 @@
+{
+  "name": "mock-sterling",
+  "version": "1.0.0",
+  "description": "Mock Sterling sending web requests to Forge",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "run": "bash start.sh"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.3.0",
+    "pino": "^7.6.0",
+    "pino-pretty": "^7.3.0",
+    "ws": "^8.4.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  }
+}

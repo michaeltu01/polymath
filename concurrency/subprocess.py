@@ -45,3 +45,21 @@ class Subprocess:
         stdout: str = Encoding.decode_process_output(stdout_bytes)
         stderr: str = Encoding.decode_process_output(stderr_bytes)
         return exit_code, stdout, stderr
+    
+    @staticmethod
+    async def run_in_background(program: str, *args: str) -> Process:
+        """
+        Invokes the given program with the provided arguments in the background.
+        Returns the Process so that the parent process can terminate it when it's done.
+        Useful for serving servers.
+        """
+        print(f"The program is: {program}")
+        print(f"The arguments are: {" ".join(args)}")
+        
+        process: Process = await create_subprocess_exec(
+            program,
+            *args,
+            stdout=PIPE,
+            stderr=PIPE,
+        )
+        return process

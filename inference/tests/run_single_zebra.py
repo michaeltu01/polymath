@@ -87,8 +87,10 @@ async def main() -> None:
 
             await agent.solve()
 
-    print("\n=== Solution (ZeroEval format) ===\n")
-    print(result_trace.solution or "(no solution)")
+    # print("\n=== Solution (ZeroEval format) ===\n")
+    # print(result_trace.solution or "(no solution)")
+    print("\n=== Solver output (JSON) ===\n")
+    print(result_trace.solver_output or "(no solution)")
 
     print("\n=== Conversation trace ===\n")
     for m in result_trace.messages:

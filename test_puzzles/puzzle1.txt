@@ -1,3 +1,5 @@
+lgp-test-4x4-27
+
 There are 4 houses, numbered 1 to 4 from left to right, as seen from across the street. Each house is occupied by a different person. Each house has a unique attribute for each of the following characteristics:
  - Each person has a unique name: `Alice`, `Eric`, `Arnold`, `Peter`
  - Each person has an occupation: `artist`, `engineer`, `teacher`, `doctor`

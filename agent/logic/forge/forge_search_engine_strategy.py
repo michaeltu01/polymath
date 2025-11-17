@@ -136,6 +136,8 @@ _UNSAT_MESSAGE: str = (
     "Your constraints are contradictory and thus the solver could not find a solution. Please review them and try to spot the error, we will go through the step of generating the `def validate(solution: Solution) -> None` function again."
 )
 
+DEFAULT_FORGE_PORT = 4000
+
 class ForgeSearchEngineStrategy(EngineStrategy):
     """
     Implements the EngineStrategy interface for the Forge backend.
@@ -167,10 +169,16 @@ class ForgeSearchEngineStrategy(EngineStrategy):
     async def generate_solver_constraints(
         self, module: Module, metadata: Optional[MetadataWrapper]
     ) -> str:
-        return LogicPyForgeHarnessGenerator.generate(module)
+        if metadata is None:
+            raise ValueError("MetadataWrapper is required to generate solver constraints in LogicPyForge.")
+        return LogicPyForgeHarnessGenerator.generate(metadata)
 
     def generate_solver_invocation_command(self, solver_input_file: str) -> list[str]:
-        return " ".join(["racket", "forge", solver_input_file])
+        # return [" ".join(["racket", solver_input_file, "-O", "run_sterling", "serve", "-O", "sterling_port", f"{DEFAULT_FORGE_PORT}"])]
+        return ["racket", solver_input_file, "-O", "run_sterling", "serve", "-O", "sterling_port", f"{DEFAULT_FORGE_PORT}"]
+
+    def generate_server_client_invocation_command(self) -> list[str]:
+        return [" ".join(["npm", "run", "run", f"{DEFAULT_FORGE_PORT}"])]
 
     def get_format_prompt(self, solution: str) -> Optional[str]:
         """
@@ -185,6 +193,7 @@ class ForgeSearchEngineStrategy(EngineStrategy):
         """
         return _FORMAT_MESSAGE.format(solution=solution, output_format=self.__output_format)
 
+    # FIXME: I think I need to modify the function header??
     def parse_solver_output(
         self, exit_code: int, stdout: str, stderr: str
     ) -> Tuple[SolverOutcome, Optional[str]]:
