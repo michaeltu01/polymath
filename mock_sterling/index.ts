@@ -88,12 +88,23 @@ export class MockWebSocketClient {
 
   private handleServerMessage(message: string): ProviderResponse {
     try {
+      // this.logger.error("Message:", message)
       const data = JSON.parse(message);
+      const checkedData = providerResponseSchema.safeParse(data);
+      this.logger.info("Checked data:", checkedData.success)
+      if (checkedData.success) {
+        this.logger.info(`Received checked message from server: ${JSON.stringify(checkedData.data)}`);
+        return checkedData.data
+      }
+      // } else {
+        //   this.logger.error('Message was not valid JSON:', checkedData.error);
+        //   throw new Error('Wrong JSON shape');
+        // }
       this.logger.info(`Received message from server: ${JSON.stringify(data)}`);
       return data
     } catch (error) {
       this.logger.error('Message was not valid JSON:', message);
-      throw new Error('Invalid JSON')
+      throw new Error('Invalid JSON');
     }
   };
 
@@ -176,9 +187,21 @@ async function main() {
   // Get responses from the Mock Sterling
   const clickResponse1 = await mock.sendRequest(clickFirst, clickResponseSchema)
 
+  // FIXME: Produce the properly constructed JSON
+
   if(clickResponse1.payload.enter[0] !== undefined) {
     const parsed1 = alloyXMLToDatum(clickResponse1.payload.enter[0].data)
-    mock.logger.info(`${JSON.stringify(parsed1, null, 2)}`)
+    const status = clickResponse1.payload.enter[0].status
+    const core = clickResponse1.payload.enter[0].core
+
+    const responseJson = {
+      alloyDatum: parsed1,
+      status: status,
+      core: core
+    }
+
+    // mock.logger.info(`${JSON.stringify(parsed1, null, 2)}`)
+    mock.logger.info(`${JSON.stringify(responseJson, null, 2)}`)
     
     // Disconnect from the mock after getting one datum; exit from the process gracefully
     mock.logger.info('Disconnecting...');

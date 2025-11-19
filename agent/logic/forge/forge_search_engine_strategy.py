@@ -10,12 +10,14 @@ TODO:
 """
 
 from collections.abc import Callable
+import json
 from logging import Logger
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from libcst import MetadataWrapper, Module
 from agent.logic.engine_strategy import EngineStrategy, SolverOutcome
 from agent.logic.forge.logic_py_forge_harness_generator import LogicPyForgeHarnessGenerator
+from mock_sterling.test_mock_sterling import MockSterlingClient
 
 # Instructs the model to generate the solution constraints.
 _CONSTRAINTS_MESSAGE: str = """Now you must generate a validation function which contains constraints that assert that a given solution is correct. Your solver tool will then find a solution which satisfies your constraints and thus solve the puzzle. Please adhere to the following rules:
@@ -154,6 +156,10 @@ class ForgeSearchEngineStrategy(EngineStrategy):
         self.__logger: Logger = logger_factory(__name__)
         self.__task: str = task
         self.__output_format: str = output_format
+
+    """
+    PROPERTIES
+    """
     
     @property
     def constraints_prompt(self) -> list[str]:
@@ -165,6 +171,30 @@ class ForgeSearchEngineStrategy(EngineStrategy):
         Prompt sent to the LLM instructing it to generate the data structure.
         """
         return _DATA_STRUCTURE_MESSAGE.format(self.__output_format)
+    
+    @property
+    def python_code_prefix(self) -> str:
+        return ""
+
+    @property
+    def retry_prompt(self) -> str:
+        return _UNSAT_MESSAGE
+
+    @property
+    def solver_input_file_suffix(self) -> str:
+        return ".frg"
+
+    @property
+    def system_prompt(self) -> str:
+        """
+        Initiates the first prompt sent to the LLM to describe the task.
+        """
+        return _PUZZLE_PROMPT.format(self.__task)
+    
+
+    """
+    GENERATORS
+    """
 
     async def generate_solver_constraints(
         self, module: Module, metadata: Optional[MetadataWrapper]
@@ -174,9 +204,10 @@ class ForgeSearchEngineStrategy(EngineStrategy):
         return LogicPyForgeHarnessGenerator.generate(metadata)
 
     def generate_solver_invocation_command(self, solver_input_file: str) -> list[str]:
-        # return [" ".join(["racket", solver_input_file, "-O", "run_sterling", "serve", "-O", "sterling_port", f"{DEFAULT_FORGE_PORT}"])]
+        # NOTE: When passing to concurrency subprocess, "racket" = program/executable, rest are args
         return ["racket", solver_input_file, "-O", "run_sterling", "serve", "-O", "sterling_port", f"{DEFAULT_FORGE_PORT}"]
 
+    # NOTE: Not being used currently... I'm not sure if I need to use this in MockSterlingClient, but we'll see
     def generate_server_client_invocation_command(self) -> list[str]:
         return [" ".join(["npm", "run", "run", f"{DEFAULT_FORGE_PORT}"])]
 
@@ -209,25 +240,25 @@ class ForgeSearchEngineStrategy(EngineStrategy):
             we succeeded or should retry), and optionally the solution in solver
             format if the invocation was succesful.
         """
-        # TODO: Parse Forge output
-        # Get XML output from Forge API
-        ...
-    
-    @property
-    def python_code_prefix(self) -> str:
-        return ""
+        # TODO: Implement me!
 
-    @property
-    def retry_prompt(self) -> str:
-        return _UNSAT_MESSAGE
+        if exit_code != 0:
+            return SolverOutcome.FATAL, None
+        
+        instanceJSON: dict[str, Any]
+        try:
+            instanceJSON = MockSterlingClient.extract_alloy_json(stdout)
+        except:
+            return SolverOutcome.FATAL, None
+        
+        # UNSAT case
+        if "unsat" == instanceJSON.get("status", "").lower():
+            # TODO: Add more logging in this class
+            self.__logger.error(
+                "Unsatisfiable constraints, suggest model should attempt to repair constraints..."
+            )
+            return SolverOutcome.RETRY, None
 
-    @property
-    def solver_input_file_suffix(self) -> str:
-        return ".frg"
-
-    @property
-    def system_prompt(self) -> str:
-        """
-        Initiates the first prompt sent to the LLM to describe the task.
-        """
-        return _PUZZLE_PROMPT.format(self.__task)
+        # SAT case
+        output = json.dump(instanceJSON, indent=2)
+        return SolverOutcome.SUCCESS, output

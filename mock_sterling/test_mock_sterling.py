@@ -58,7 +58,7 @@ class MockSterlingClient:
         current_file = Path(__file__).resolve()
         return str(current_file.parent)
     
-    async def get_alloy_instance(self) -> Optional[Dict[str, Any]]:
+    async def run_sterling_client(self) -> tuple[int, str, str]:
         """
         Run the TypeScript client to connect to the Forge server
         and retrieve the first Alloy instance.
@@ -70,7 +70,9 @@ class MockSterlingClient:
         - Output the parsed alloyDatum as JSON
         
         Returns:
-            Parsed JSON matching alloyDatumSchema, or None if failed
+            exit_code: Exit code of the TypeScript process
+            stdout: Standard output from the process
+            stderr: Standard error from the process
         """
         try:
             # Change to mock_sterling directory and run npm
@@ -80,26 +82,16 @@ class MockSterlingClient:
                 f"cd {self.script_dir} && npm run run {self.port}",
                 timeout_in_s=self.TIMEOUT_SECONDS,
             )
-            
-            if exit_code != 0:
-                print(f"Error: Client exited with code {exit_code}")
-                print(f"stderr: {stderr}")
-                return None
-            
-            # Parse JSON from stdout
-            # The TypeScript client logs the parsed instance using pino logger
-            alloy_instance = self._extract_alloy_json(stdout)
-            
-            return alloy_instance
+
+            return exit_code, stdout, stderr
             
         except TimeoutError:
-            print(f"Error: Client timeout after {self.TIMEOUT_SECONDS}s")
-            return None
+            raise TimeoutError(f"Error: Client timeout after {self.TIMEOUT_SECONDS}s")
         except Exception as e:
-            print(f"Error running client: {e}")
-            return None
+            raise Exception(f"Error running client: {e}")
     
-    def _extract_alloy_json(self, stdout: str) -> Optional[Dict[str, Any]]:
+    @staticmethod
+    def extract_alloy_json(self, stdout: str) -> Dict[str, Any]:
         """
         Extract the Alloy instance JSON from stdout.
         
@@ -111,7 +103,7 @@ class MockSterlingClient:
             stdout: Raw stdout from the TypeScript process
             
         Returns:
-            Parsed alloyDatum object or None
+            Parsed alloyDatum object or raises ValueError if not found.
         """
         # Strategy: Find the multi-line JSON block in pino-pretty output
         # Look for a line that starts with timestamp and "INFO: {" 
@@ -156,7 +148,7 @@ class MockSterlingClient:
         # If no valid alloyDatum found, print debug info
         print("Warning: No valid alloyDatum JSON found in output")
         print(f"Output preview (last 500 chars):\n{stdout[-500:]}")
-        return None
+        raise ValueError("No valid alloyDatum JSON found")
     
     @staticmethod
     def _is_alloy_datum(data: Any) -> bool:
@@ -222,7 +214,7 @@ async def main():
     
     # Get Alloy instance from the running server
     print("Requesting Alloy instance via WebSocket client...")
-    alloy_instance = await client.get_alloy_instance()
+    alloy_instance = await client.run_sterling_client()
     
     if alloy_instance:
         print("\n✅ Successfully retrieved Alloy instance!")
@@ -253,66 +245,6 @@ async def main():
     
     print("\n" + "=" * 60)
     return 0
-
-
-# ============================================================================
-# INTEGRATION PATTERN FOR forge_agent.py
-# ============================================================================
-
-async def forge_agent_integration_example(solver_input_file: str) -> Optional[str]:
-    """
-    Example showing how this integrates into __generate_and_verify_constraints.
-    
-    This would be used AFTER the current Subprocess.run call that starts
-    the Forge server. The server stays running, and we connect to it
-    with the WebSocket client to retrieve instances.
-    
-    Args:
-        solver_input_file: Path to the Forge constraints file (already loaded
-                          by the server started via generate_solver_invocation_command)
-        
-    Returns:
-        Solver output (Alloy instance JSON string) or None
-    """
-    # The Forge server is already running (started by generate_solver_invocation_command)
-    # Now we connect with the WebSocket client to get instances
-    
-    client = MockSterlingClient(port=4000)
-    alloy_instance = await client.get_alloy_instance()
-    
-    if alloy_instance:
-        # Convert to string for result_trace.solver_output
-        return json.dumps(alloy_instance, indent=2)
-    else:
-        return None
-
-
-# To integrate into forge_agent.py __generate_and_verify_constraints:
-# 
-# BEFORE (current code):
-#     solver_exit_code, stdout, stderr = await Subprocess.run(
-#         *self.__engine_strategy.generate_solver_invocation_command(solver_input_file),
-#         timeout_in_s=_SOLVER_TIMEOUT,
-#     )
-#     self.__result_trace.solver_output = f"{stdout}{stderr}"
-#
-# AFTER (with WebSocket client):
-#     # Start Forge server (runs in background, serves on port 4000)
-#     solver_exit_code, stdout, stderr = await Subprocess.run(
-#         *self.__engine_strategy.generate_solver_invocation_command(solver_input_file),
-#         timeout_in_s=_SOLVER_TIMEOUT,
-#     )
-#     
-#     # Connect with WebSocket client to get instances
-#     from mock_sterling.test_mock_sterling import MockSterlingClient
-#     client = MockSterlingClient(port=4000)
-#     alloy_instance = await client.get_alloy_instance()
-#     
-#     if alloy_instance:
-#         self.__result_trace.solver_output = json.dumps(alloy_instance, indent=2)
-#     else:
-#         self.__result_trace.solver_output = f"{stdout}{stderr}"  # Fallback
-
 
 if __name__ == "__main__":
     exit_code = asyncio.run(main())

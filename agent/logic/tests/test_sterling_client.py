@@ -62,7 +62,7 @@ class TestSterlingClientConnection(TestCase):
                 print("Connecting to Sterling client...")
                 from mock_sterling.test_mock_sterling import MockSterlingClient
                 client = MockSterlingClient(port=self.default_port)
-                alloy_instance = await client.get_alloy_instance()
+                alloy_instance = await client.run_sterling_client()
 
                 if alloy_instance:
                     solver_output = json.dumps(alloy_instance, indent=2)

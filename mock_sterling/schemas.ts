@@ -32,7 +32,11 @@ export const clickResponseSchema = z.object({
             format: z.literal('alloy').or(z.literal('forge')),
             data: z.string(), // alloy XML
             buttons: z.array(buttonSchema),
-            evaluator: z.boolean()})),
+            evaluator: z.boolean(),
+            status: z.string('unsat').or(z.string('sat')), // "unsat" or "sat"
+            generatorName: z.string(),
+            core: z.array(z.string()).or(z.boolean('false')), // the unsat core or false
+        })),
         update: z.array(dataUpdateSchema),
         exit: z.array(z.string())
     })
@@ -64,6 +68,7 @@ const sigSchema = z.object({
     builtin: z.literal('yes').or(z.undefined())
 })
 const fieldSchema = z.any()
+
 export const alloyDatumSchema = z.object({
     alloy: z.object({
         instance: z.object({
